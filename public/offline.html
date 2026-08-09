@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>You're offline</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #fafafa;
+      color: #111;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100dvh;
+      padding: 24px;
+      text-align: center;
+    }
+    .icon {
+      width: 72px; height: 72px;
+      background: #f0f0f0;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 24px;
+      font-size: 32px;
+    }
+    h1 { font-size: 24px; font-weight: 700; margin-bottom: 10px; }
+    p  { font-size: 15px; color: #666; line-height: 1.6; max-width: 320px; margin-bottom: 28px; }
+    button {
+      background: #111; color: #fff;
+      border: none; border-radius: 50px;
+      padding: 14px 28px; font-size: 15px; font-weight: 600;
+      cursor: pointer; letter-spacing: 0.3px;
+      transition: opacity 0.15s;
+    }
+    button:hover { opacity: 0.85; }
+    .hint { margin-top: 16px; font-size: 12px; color: #aaa; }
+  </style>
+</head>
+<body>
+  <div class="icon">📶</div>
+  <h1>You're offline</h1>
+  <p>Check your internet connection and try again. Your cart is saved and will be ready when you're back.</p>
+  <button onclick="location.reload()">Try again</button>
+  <p class="hint">Pages you've visited recently may still load from cache.</p>
+</body>
+</html>

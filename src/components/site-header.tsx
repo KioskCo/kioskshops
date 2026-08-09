@@ -1,0 +1,398 @@
+import { Link, useNavigate } from "@tanstack/react-router";
+import { List, Moon, Search, Bag, SunFill, XLg, PersonCircle } from "react-bootstrap-icons";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { useCart } from "@/lib/cart";
+import { useStorefront } from "@/lib/storefront";
+import { useVendorProducts } from "@/lib/vendorProducts";
+
+type Product = { slug: string; name: string; description: string; image: string; price: number; tagline?: string };
+
+function SearchInput({
+  value,
+  onChange,
+  onEnter,
+  onClose,
+  inputRef,
+  autoFocus = true,
+  className = "",
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  onEnter: () => void;
+  onClose: () => void;
+  inputRef?: React.RefObject<HTMLInputElement | null>;
+  autoFocus?: boolean;
+  className?: string;
+}) {
+  return (
+    <div className={`flex items-center gap-2 px-4 ${className}`}>
+      <Search className="shrink-0 text-muted-foreground" style={{ fontSize: 15 }} />
+      <input
+        ref={inputRef}
+        autoFocus={autoFocus}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onKeyDown={(e) => { if (e.key === "Enter" && value.trim()) onEnter(); if (e.key === "Escape") onClose(); }}
+        placeholder="Search products…"
+        className="h-12 w-full bg-transparent text-sm focus:outline-none"
+      />
+      {value && (
+        <button onClick={() => onChange("")} className="shrink-0 text-muted-foreground hover:text-foreground">
+          <XLg style={{ fontSize: 14 }} />
+        </button>
+      )}
+      <button onClick={onClose} className="shrink-0 text-xs font-semibold text-primary hover:opacity-70 ml-1 whitespace-nowrap">
+        Cancel
+      </button>
+    </div>
+  );
+}
+
+function SearchResults({
+  q,
+  results,
+  onPick,
+  onSeeAll,
+}: {
+  q: string;
+  results: Product[];
+  onPick: (slug: string) => void;
+  onSeeAll: () => void;
+}) {
+  return (
+    <>
+      <div className="max-h-72 overflow-y-auto p-2">
+        {q.trim() === "" && <p className="px-3 py-6 text-center text-xs text-muted-foreground">Start typing to search…</p>}
+        {q.trim() !== "" && results.length === 0 && <p className="px-3 py-6 text-center text-xs text-muted-foreground">No products found.</p>}
+        {results.map((p) => (
+          <button
+            key={p.slug}
+            onClick={() => onPick(p.slug)}
+            className="flex w-full items-center gap-3 rounded-md p-2 text-left hover:bg-secondary"
+          >
+            <img src={p.image} alt="" className="h-10 w-10 shrink-0 rounded object-cover" />
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-medium">{p.name}</p>
+              {p.tagline && <p className="truncate text-xs text-muted-foreground">{p.tagline}</p>}
+            </div>
+            <span className="shrink-0 text-xs text-muted-foreground">₦{Number(p.price).toLocaleString("en-NG")}</span>
+          </button>
+        ))}
+      </div>
+      {(q.trim() !== "" || results.length > 0) && (
+        <div className="border-t border-border px-4 py-2 text-right">
+          <button onClick={onSeeAll} className="text-xs text-muted-foreground hover:text-foreground">
+            See all results →
+          </button>
+        </div>
+      )}
+    </>
+  );
+}
+
+export function SiteHeader() {
+  const { count, setOpen } = useCart();
+  const { theme, setTheme, navbar } = useStorefront();
+  const { products } = useVendorProducts();
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [mobileVisible, setMobileVisible] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [q, setQ] = useState("");
+  const navigate = useNavigate();
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
+
+  const searchStyle = navbar.searchStyle ?? "dropdown";
+
+  const openSearch = useCallback(() => {
+    setQ("");
+    setSearchOpen(true);
+    setTimeout(() => searchInputRef.current?.focus(), 80);
+  }, []);
+
+  const closeSearch = useCallback(() => {
+    setSearchOpen(false);
+    setQ("");
+  }, []);
+
+  const logoMode = navbar.logoMode ?? "text";
+  const logoHeight = navbar.logoHeight ?? 28;
+
+  const openMobile = () => {
+    if (closeTimer.current) clearTimeout(closeTimer.current);
+    setMobileOpen(true);
+    requestAnimationFrame(() => requestAnimationFrame(() => setMobileVisible(true)));
+  };
+
+  const closeMobile = () => {
+    setMobileVisible(false);
+    closeTimer.current = setTimeout(() => setMobileOpen(false), 300);
+  };
+
+  useEffect(() => () => { if (closeTimer.current) clearTimeout(closeTimer.current); }, []);
+
+  const allResults = q.trim()
+    ? products.filter((p) => (p.name + " " + p.description).toLowerCase().includes(q.toLowerCase())).slice(0, 8)
+    : [];
+
+  const navStyle = navbar.navbarStyle ?? "default";
+  const navBg = navbar.navbarBg;
+  const headerClass = [
+    navbar.sticky ? "sticky top-0" : "",
+    "z-40",
+    navStyle === "transparent" ? "bg-transparent border-b-0" :
+    navStyle === "minimal"     ? "bg-background border-b-0" :
+    navStyle === "bordered"    ? "border-b-2 border-foreground bg-background" :
+    navStyle === "filled"      ? "border-b-0" :
+    "border-b border-border bg-background/95 backdrop-blur",
+  ].filter(Boolean).join(" ");
+  const headerStyle = navStyle === "filled" ? { backgroundColor: navBg ?? "#111111", color: "#ffffff" } : navBg ? { backgroundColor: navBg } : undefined;
+  const textOverride = navStyle === "filled" ? "text-white" : "";
+
+  const navLinks = navbar.links.map((l, i) => {
+    if (l.isButton) {
+      const btnClass =
+        l.btnStyle === "solid"
+          ? "rounded px-4 py-1.5 font-medium bg-accent text-accent-foreground hover:opacity-90 transition-opacity"
+          : l.btnStyle === "outline"
+          ? "rounded border border-accent px-4 py-1.5 font-medium text-accent hover:bg-accent/10 transition-colors"
+          : `rounded px-4 py-1.5 font-medium ${textOverride ? "text-white/80 hover:text-white" : "text-foreground/80 hover:text-foreground"}`;
+      return <a key={i} href={l.href} className={btnClass}>{l.label}</a>;
+    }
+    return <a key={i} href={l.href} className={`${textOverride ? "text-white/80 hover:text-white" : "text-foreground/80 hover:text-foreground"}`}>{l.label}</a>;
+  });
+
+  const goToSearch = () => { closeSearch(); navigate({ to: "/search", search: { q } as any }); };
+  const goToProduct = (slug: string) => { closeSearch(); navigate({ to: "/product/$slug", params: { slug } }); };
+
+  return (
+    <header className={`${headerClass} relative`} style={headerStyle}>
+      {/* ── Main header row (always in DOM, never replaced) ── */}
+      <div className={`mx-auto flex h-16 max-w-7xl items-center justify-between gap-3 px-4 md:px-6 ${textOverride}`}>
+
+        {/* Logo + hamburger */}
+        <div className="flex items-center gap-3">
+          <button onClick={openMobile} className="inline-flex h-10 w-10 items-center justify-center rounded-full hover:bg-white/10 md:hidden" aria-label="Menu">
+            <List className="h-4 w-4" />
+          </button>
+          <Link to="/" className="flex items-center gap-0.5 text-xl font-semibold tracking-tight">
+            {navbar.logoImage && (logoMode === "logo" || logoMode === "both") && (
+              <img src={navbar.logoImage} alt={navbar.brand} style={{ height: `${logoHeight}px`, maxWidth: `${logoHeight * 2.2}px`, objectFit: "contain", objectPosition: "left center" }} />
+            )}
+            {(logoMode === "text" || logoMode === "both" || !navbar.logoImage) && <span>{navbar.brand}</span>}
+          </Link>
+        </div>
+
+        {/* Center nav — always present, never removed */}
+        <nav className="hidden items-center gap-6 text-sm md:flex">
+          {navLinks}
+        </nav>
+
+        {/* Right icons + CTA buttons */}
+        <div className="flex items-center gap-1">
+          {/* Left-positioned CTA buttons (non-sidebar-only) */}
+          {(navbar.ctaButtons ?? []).filter((b) => b.navPosition === "left" && !b.showInSidebar).map((btn, i) => {
+            const cls = btn.style === "solid"
+              ? "rounded px-4 py-1.5 text-sm font-semibold hover:opacity-90 transition-opacity"
+              : btn.style === "outline"
+              ? "rounded border px-4 py-1.5 text-sm font-semibold hover:opacity-80 transition-colors"
+              : "rounded px-4 py-1.5 text-sm font-semibold hover:opacity-70";
+            const sty = btn.style === "solid"
+              ? { backgroundColor: btn.btnBg ?? "var(--accent)", color: btn.btnColor ?? "#fff" }
+              : btn.style === "outline"
+              ? { borderColor: btn.btnBg ?? "var(--accent)", color: btn.btnColor ?? "var(--accent)" }
+              : { color: btn.btnColor ?? "inherit" };
+            return <a key={i} href={btn.href} className={cls} style={sty}>{btn.label}</a>;
+          })}
+          {navbar.showSearch && (
+            <button onClick={openSearch} className="inline-flex h-10 w-10 items-center justify-center rounded-full hover:bg-secondary" aria-label="Search">
+              <Search size={16} />
+            </button>
+          )}
+          {navbar.showThemeToggle && (
+            <button onClick={() => setTheme(theme === "dark" ? "light" : "dark")} className="inline-flex h-10 w-10 items-center justify-center rounded-full hover:bg-secondary" aria-label="Toggle theme">
+              {theme === "dark" ? <SunFill style={{ fontSize: 16 }} /> : <Moon style={{ fontSize: 16 }} />}
+            </button>
+          )}
+          {navbar.showProfileIcon && (
+            <a href={navbar.profileLink ?? "/login"} className="inline-flex h-10 w-10 items-center justify-center rounded-full hover:bg-secondary" aria-label="Account">
+              <PersonCircle style={{ fontSize: 18 }} />
+            </a>
+          )}
+          {navbar.showCart && (
+            <button onClick={() => setOpen(true)} className="relative inline-flex h-10 w-10 items-center justify-center rounded-full hover:bg-secondary" aria-label="Open cart">
+              <Bag style={{ fontSize: 17 }} />
+              {count > 0 && (
+                <span className="absolute -right-0.5 -top-0.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-accent px-1.5 text-[10px] font-medium text-accent-foreground">{count}</span>
+              )}
+            </button>
+          )}
+          {/* Right-positioned CTA buttons (non-sidebar-only) — hidden on mobile */}
+          {(navbar.ctaButtons ?? []).filter((b) => b.navPosition !== "left" && !b.showInSidebar).map((btn, i) => {
+            const cls = btn.style === "solid"
+              ? "hidden md:inline-flex rounded px-4 py-1.5 text-sm font-semibold hover:opacity-90 transition-opacity"
+              : btn.style === "outline"
+              ? "hidden md:inline-flex rounded border px-4 py-1.5 text-sm font-semibold hover:opacity-80 transition-colors"
+              : "hidden md:inline-flex rounded px-4 py-1.5 text-sm font-semibold hover:opacity-70";
+            const sty = btn.style === "solid"
+              ? { backgroundColor: btn.btnBg ?? "var(--accent)", color: btn.btnColor ?? "#fff" }
+              : btn.style === "outline"
+              ? { borderColor: btn.btnBg ?? "var(--accent)", color: btn.btnColor ?? "var(--accent)" }
+              : { color: btn.btnColor ?? "inherit" };
+            return <a key={i} href={btn.href} className={cls} style={sty}>{btn.label}</a>;
+          })}
+        </div>
+      </div>
+
+      {/* ── EXPAND: absolutely-positioned overlay — covers header without shifting layout ── */}
+      {searchStyle === "expand" && (
+        <div
+          className={`absolute inset-0 z-10 hidden items-center bg-background/96 backdrop-blur-sm transition-all duration-200 ease-out md:flex ${
+            searchOpen ? "opacity-100 pointer-events-auto translate-x-0" : "opacity-0 pointer-events-none translate-x-4"
+          }`}
+          style={headerStyle}
+        >
+          <div className="mx-auto flex w-full max-w-7xl items-center gap-3 px-4 md:px-6">
+            <Search size={16} className="shrink-0 text-muted-foreground" />
+            <input
+              ref={searchInputRef}
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter" && q.trim()) goToSearch(); if (e.key === "Escape") closeSearch(); }}
+              placeholder="Search products…"
+              className="h-16 flex-1 bg-transparent text-sm focus:outline-none"
+            />
+            {q && (
+              <button onClick={() => setQ("")} className="shrink-0 text-muted-foreground hover:text-foreground">
+                <XLg style={{ fontSize: 14 }} />
+              </button>
+            )}
+            <button onClick={closeSearch} className="ml-1 shrink-0 text-xs font-semibold text-primary hover:opacity-70">
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── SLIDE: full-width bar below the header row ── */}
+      {searchStyle === "slide" && (
+        <div className={`overflow-hidden border-b border-border bg-background transition-all duration-300 ease-in-out ${searchOpen ? "max-h-[400px] opacity-100" : "max-h-0 opacity-0 pointer-events-none"}`}>
+          <div className="mx-auto max-w-7xl">
+            <SearchInput value={q} onChange={setQ} onEnter={goToSearch} onClose={closeSearch} inputRef={searchInputRef} className="border-b border-border" />
+            <SearchResults q={q} results={allResults} onPick={goToProduct} onSeeAll={goToSearch} />
+          </div>
+        </div>
+      )}
+
+      {/* ── EXPAND: results drop below the header overlay ── */}
+      {searchStyle === "expand" && searchOpen && q.trim() !== "" && typeof document !== "undefined" && createPortal(
+        <div className="fixed inset-x-0 top-16 z-[49] hidden md:block" onClick={closeSearch}>
+          <div className="mx-auto max-w-7xl px-4 md:px-6">
+            <div className="overflow-hidden rounded-b-xl border border-t-0 border-border bg-background shadow-xl" onClick={(e) => e.stopPropagation()}>
+              <SearchResults q={q} results={allResults} onPick={goToProduct} onSeeAll={goToSearch} />
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Mobile menu */}
+      {mobileOpen && typeof document !== "undefined" && createPortal(
+        <div className="fixed inset-0 z-[200] md:hidden" onClick={closeMobile}>
+          <div className={`absolute inset-0 bg-black/50 transition-opacity duration-300 ${mobileVisible ? "opacity-100" : "opacity-0"}`} />
+          <div
+            className={`absolute left-0 top-0 h-full w-72 border-r border-border bg-background p-5 shadow-2xl transition-transform duration-300 ease-in-out ${mobileVisible ? "translate-x-0" : "-translate-x-full"}`}
+            style={{ backgroundColor: "var(--background)" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-6 flex items-center justify-between">
+              <div className="flex items-center gap-0.5 text-lg font-semibold">
+                {navbar.logoImage && (logoMode === "logo" || logoMode === "both") && (
+                  <img src={navbar.logoImage} alt={navbar.brand} style={{ height: `${Math.min(logoHeight, 24)}px`, maxWidth: `${Math.min(logoHeight, 24) * 2.2}px`, objectFit: "contain", objectPosition: "left center" }} />
+                )}
+                {(logoMode === "text" || logoMode === "both" || !navbar.logoImage) && <span>{navbar.brand}</span>}
+              </div>
+              <button onClick={closeMobile} className="inline-flex h-8 w-8 items-center justify-center rounded-full hover:bg-secondary">
+                <XLg style={{ fontSize: 18 }} />
+              </button>
+            </div>
+            <nav className="flex flex-col gap-1">
+              {navbar.links.map((l, i) => {
+                if (l.isButton) {
+                  const btnClass =
+                    l.btnStyle === "solid"
+                      ? "rounded-md px-3 py-2.5 text-sm font-medium bg-accent text-accent-foreground text-center"
+                      : l.btnStyle === "outline"
+                      ? "rounded-md border border-accent px-3 py-2.5 text-sm font-medium text-accent text-center"
+                      : "rounded-md px-3 py-2.5 text-sm hover:bg-secondary";
+                  return <a key={i} href={l.href} onClick={closeMobile} className={btnClass}>{l.label}</a>;
+                }
+                return <a key={i} href={l.href} onClick={closeMobile} className="rounded-md px-3 py-2.5 text-sm hover:bg-secondary">{l.label}</a>;
+              })}
+              {navbar.showProfileIcon && (
+                <a href={navbar.profileLink ?? "/login"} onClick={closeMobile} className="flex items-center gap-2 rounded-md px-3 py-2.5 text-sm hover:bg-secondary">
+                  <PersonCircle style={{ fontSize: 16 }} />
+                  <span>My Account</span>
+                </a>
+              )}
+              {/* Sidebar-only CTA buttons */}
+              {(navbar.ctaButtons ?? []).filter((b) => b.showInSidebar).map((btn, i) => {
+                const cls = btn.style === "solid"
+                  ? "rounded-md px-3 py-2.5 text-sm font-medium text-center"
+                  : btn.style === "outline"
+                  ? "rounded-md border px-3 py-2.5 text-sm font-medium text-center"
+                  : "rounded-md px-3 py-2.5 text-sm font-medium text-center";
+                const sty = btn.style === "solid"
+                  ? { backgroundColor: btn.btnBg ?? "var(--accent)", color: btn.btnColor ?? "#fff" }
+                  : btn.style === "outline"
+                  ? { borderColor: btn.btnBg ?? "var(--accent)", color: btn.btnColor ?? "var(--accent)" }
+                  : { color: btn.btnColor ?? "inherit" };
+                return <a key={i} href={btn.href} onClick={closeMobile} className={cls} style={sty}>{btn.label}</a>;
+              })}
+            </nav>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* ── DROPDOWN: floating card, 40% wide, drops from top center ── */}
+      {searchStyle === "dropdown" && searchOpen && typeof document !== "undefined" && createPortal(
+        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/30 pt-20" onClick={closeSearch}>
+          <div className="w-[42%] min-w-[320px] overflow-hidden rounded-2xl border border-border bg-background shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <SearchInput value={q} onChange={setQ} onEnter={goToSearch} onClose={closeSearch} inputRef={searchInputRef} className="border-b border-border" />
+            <SearchResults q={q} results={allResults} onPick={goToProduct} onSeeAll={goToSearch} />
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* ── OVERLAY: full-screen dark backdrop ── */}
+      {searchStyle === "overlay" && searchOpen && typeof document !== "undefined" && createPortal(
+        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/70 px-4 pt-24" onClick={closeSearch}>
+          <div className="w-full max-w-xl overflow-hidden rounded-2xl bg-background shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <SearchInput value={q} onChange={setQ} onEnter={goToSearch} onClose={closeSearch} inputRef={searchInputRef} className="border-b border-border" />
+            <SearchResults q={q} results={allResults} onPick={goToProduct} onSeeAll={goToSearch} />
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* ── DRAWER: right-side panel ── */}
+      {searchStyle === "drawer" && typeof document !== "undefined" && createPortal(
+        <div className={`fixed inset-0 z-50 transition-opacity duration-300 ${searchOpen ? "opacity-100" : "opacity-0 pointer-events-none"}`} onClick={closeSearch}>
+          <div className="absolute inset-0 bg-black/40" />
+          <div
+            className={`absolute right-0 top-0 h-full w-80 border-l border-border bg-background shadow-2xl transition-transform duration-300 ease-in-out ${searchOpen ? "translate-x-0" : "translate-x-full"}`}
+            style={{ backgroundColor: "var(--background)" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <SearchInput value={q} onChange={setQ} onEnter={goToSearch} onClose={closeSearch} inputRef={searchInputRef} className="border-b border-border" />
+            <SearchResults q={q} results={allResults} onPick={goToProduct} onSeeAll={goToSearch} />
+          </div>
+        </div>,
+        document.body
+      )}
+    </header>
+  );
+}

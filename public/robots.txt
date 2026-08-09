@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /admin-login
+
+# Sitemap location
+Sitemap: https://kiosk.store/sitemap.xml
