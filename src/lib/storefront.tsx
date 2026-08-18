@@ -196,6 +196,8 @@ export type ProductCardVariant = "classic" | "minimal" | "overlay" | "horizontal
 export type FeaturedProductsSection = SectionBase & {
   type: "featured-products"; heading: string; subheading?: string; productSlugs: string[]; columns: 2 | 3 | 4;
   productLink?: string;
+  /** "inventory" = live vendor products; "manual" = template default/demo products */
+  sourceMode?: "manual" | "inventory";
   cardVariant?: ProductCardVariant;
   cartBtnStyle?: CartBtnStyle;
   cartBtnBg?: string;
@@ -1095,6 +1097,28 @@ export type PricingPlansSection = SectionBase & {
   plans: PricingPlan[];
 };
 
+export type CountdownSection = SectionBase & {
+  type: "countdown";
+  heading?: string;
+  body?: string;
+  targetDate: string;
+  ctaLabel?: string;
+  ctaLink?: string;
+};
+
+export type StatsSection = SectionBase & {
+  type: "stats";
+  heading?: string;
+  items: Array<{ value: string; label: string; description?: string }>;
+};
+
+export type TeamSection = SectionBase & {
+  type: "team";
+  heading?: string;
+  subheading?: string;
+  members: Array<{ name: string; role: string; bio?: string; avatar?: string }>;
+};
+
 export type Section =
   | AnnouncementSection | HeroSection | FeaturedProductsSection | ImageTextSection | RichTextSection
   | GallerySection | CollectionListSection | NewsletterSection | CtaBannerSection | TextColumnsSection
@@ -1105,7 +1129,7 @@ export type Section =
   | ReviewsSection | LookbookSection | TimelineSection | BeforeAfterSection | BundleOfferSection
   | VideoHeroSection | SocialFeedSection | MapLocationSection | SizeGuideSection | PortfolioSection
   | WhatsAppCtaSection | TrustBadgesSection | PaymentMethodsSection
-  | ColumnsSection | PricingPlansSection
+  | ColumnsSection | PricingPlansSection | CountdownSection | StatsSection | TeamSection
   | CustomSection;
 
 export type SectionType = Section["type"];
@@ -1154,14 +1178,17 @@ export const SECTION_LABELS: Record<SectionType, string> = {
   "payment-methods": "Payment methods",
   columns: "Free-layout columns",
   "pricing-plans": "Pricing plans",
+  countdown: "Countdown timer",
+  stats: "Stats / Social proof",
+  team: "Team members",
   custom: "Section Studio",
 };
 
 /** Variant options per section type. Empty means single variant. */
 export const SECTION_VARIANTS: Partial<Record<SectionType, string[]>> = {
-  hero: ["overlay", "split", "minimal", "centered", "editorial", "magazine", "immersive", "glass", "diagonal", "duo", "bold", "reveal"],
-  "featured-products": ["grid", "list"],
-  testimonials: ["cards", "quotes"],
+  hero: ["overlay", "split", "split-right", "split-left", "stacked", "text-only", "fullscreen", "boxed-right", "boxed-left", "minimal", "centered", "editorial", "magazine", "immersive", "glass", "diagonal", "duo", "bold", "reveal", "carousel"],
+  "featured-products": ["grid", "list", "carousel"],
+  testimonials: ["cards", "quotes", "grid"],
   "cta-banner": ["centered", "split"],
   "image-text": ["side-by-side", "stacked"],
   "product-detail": ["classic", "editorial", "gallery-left", "minimal"],

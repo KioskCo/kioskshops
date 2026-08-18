@@ -11,7 +11,7 @@ import {
   Instagram, Twitter, Facebook, Whatsapp, Youtube, Tiktok,
   List, XLg, ChevronUp, InfoCircle, ExclamationCircle, QuestionCircle,
   BellFill, CheckCircleFill, XCircle, ThreeDotsVertical,
-  Linkedin, Pinterest,
+  Linkedin, Pinterest, Clock,
   Gem as Crown, Grid3x3Gap as Grid, LayoutTextWindow,
   FileText, ChatDots, HandThumbsUp, BookmarkFill, ShareFill,
 } from "react-bootstrap-icons";
@@ -37,6 +37,7 @@ import {
   type VideoHeroSection, type SocialFeedSection, type MapLocationSection, type SizeGuideSection, type PortfolioSection,
   type WhatsAppCtaSection, type TrustBadgesSection, type PaymentMethodsSection,
   type ColumnsSection, type ColumnItem, type PricingPlansSection, type PricingPlan,
+  type CountdownSection, type StatsSection, type TeamSection,
   type CustomSection, type Block, type BlockAction,
   type VideoBlock, type AccordionBlock, type CountdownBlock,
   type SlideshowBlock, type ProductEmbedBlock, type LayoutBoxBlock,
@@ -416,7 +417,7 @@ function Hero({ s }: { s: HeroSection }) {
     );
   }
 
-  if (s.variant === "split") {
+  if (s.variant === "split" || s.variant === "split-right") {
     return (
       <section className="grid grid-cols-1 md:grid-cols-2" ref={heroRef}>
         <div className="flex min-h-[400px] flex-col justify-center bg-secondary p-10 md:p-16">
@@ -437,6 +438,133 @@ function Hero({ s }: { s: HeroSection }) {
             ? <HeroMedia s={s} className="absolute inset-0 h-full w-full object-cover" />
             : <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-primary/5" />
           }
+        </div>
+      </section>
+    );
+  }
+
+  if (s.variant === "split-left") {
+    return (
+      <section className="grid grid-cols-1 md:grid-cols-2" ref={heroRef}>
+        {/* Media only shows on md+ screens */}
+        <div className="hidden md:block relative min-h-[400px]">
+          {(s.image || s.bgVideo)
+            ? <HeroMedia s={s} className="absolute inset-0 h-full w-full object-cover" />
+            : <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-primary/5" />
+          }
+        </div>
+        <div className="flex min-h-[400px] flex-col justify-center bg-secondary p-10 md:p-16">
+          {s.eyebrow && <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground" style={st.eyebrowStyle}>{s.eyebrow}</p>}
+          <h1 className={`mt-3 ${st.h1} ${st.hFont}`} style={st.headingStyle}>{s.heading}</h1>
+          {s.body && <p className="mt-4 max-w-md text-muted-foreground" style={st.bodyStyle}>{s.body}</p>}
+          {s.ctaLabel && s.ctaLink && (
+            <Link to={s.ctaLink} className={`mt-6 w-fit ${st.btn}`} style={st.btnStyle}>
+              {st.btnIcon?.pos === "left" && <SectionIcon def={st.btnIcon} />}
+              {s.ctaLabel}
+              {st.btnIcon ? (st.btnIcon.pos === "right" ? <SectionIcon def={st.btnIcon} /> : null) : <ArrowRight size={16} />}
+            </Link>
+          )}
+        </div>
+      </section>
+    );
+  }
+
+  if (s.variant === "stacked") {
+    return (
+      <section className="mx-auto max-w-7xl px-6 py-12" ref={heroRef}>
+        {(s.image || s.bgVideo)
+          ? <div className="relative aspect-[16/9] w-full overflow-hidden rounded-lg">
+              <HeroMedia s={s} className="absolute inset-0 h-full w-full object-cover" />
+            </div>
+          : null}
+        <div className="mx-auto mt-8 max-w-3xl text-center">
+          {s.eyebrow && <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground" style={st.eyebrowStyle}>{s.eyebrow}</p>}
+          <h1 className={`mt-3 ${st.h1} ${st.hFont}`} style={st.headingStyle}>{s.heading}</h1>
+          {s.body && <p className="mx-auto mt-4 max-w-xl text-muted-foreground" style={st.bodyStyle}>{s.body}</p>}
+          {s.ctaLabel && s.ctaLink && (
+            <Link to={s.ctaLink} className={`mt-6 inline-flex ${st.btn}`} style={st.btnStyle}>
+              {st.btnIcon?.pos === "left" && <SectionIcon def={st.btnIcon} />}
+              {s.ctaLabel}
+              {st.btnIcon ? (st.btnIcon.pos === "right" ? <SectionIcon def={st.btnIcon} /> : null) : <ArrowRight size={16} />}
+            </Link>
+          )}
+        </div>
+      </section>
+    );
+  }
+
+  if (s.variant === "text-only") {
+    return (
+      <section className={`relative w-full overflow-hidden ${h} flex items-center bg-secondary`} ref={heroRef}>
+        <div className={`mx-auto w-full max-w-7xl px-6 ${ALIGN9_CLASS[s.align] ?? ALIGN9_CLASS["bottom-left"]}`}>
+          <div className="max-w-2xl">
+            {s.eyebrow && <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground" style={st.eyebrowStyle}>{s.eyebrow}</p>}
+            <h1 className={`mt-3 ${st.h1} ${st.hFont}`} style={st.headingStyle}>{s.heading}</h1>
+            {s.body && <p className="mt-4 max-w-md text-muted-foreground" style={st.bodyStyle}>{s.body}</p>}
+            {s.ctaLabel && s.ctaLink && (
+              <Link to={s.ctaLink} className={`mt-6 inline-flex ${st.btn}`} style={st.btnStyle}>
+                {st.btnIcon?.pos === "left" && <SectionIcon def={st.btnIcon} />}
+                {s.ctaLabel}
+                {st.btnIcon ? (st.btnIcon.pos === "right" ? <SectionIcon def={st.btnIcon} /> : null) : <ArrowRight size={16} />}
+              </Link>
+            )}
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  if (s.variant === "fullscreen") {
+    return (
+      <section className="relative" ref={heroRef}>
+        <div className="relative h-[100vh] min-h-[640px] w-full overflow-hidden">
+          <HeroMedia s={s} className="absolute inset-0 h-full w-full object-cover" style={pStyle} />
+          <div className="absolute inset-0 bg-black/40" />
+          <div className={`relative z-10 mx-auto flex h-full max-w-7xl flex-col px-6 py-12 text-white ${alignCls}`}>
+            <div className="max-w-2xl">
+              {s.eyebrow && <p className="text-xs uppercase tracking-[0.25em] opacity-80" style={st.eyebrowStyle}>{s.eyebrow}</p>}
+              <h1 className={`mt-3 ${st.h1} ${st.hFont}`} style={st.headingStyle}>{s.heading}</h1>
+              {s.body && <p className="mt-4 max-w-md text-sm opacity-90 md:text-base" style={st.bodyStyle}>{s.body}</p>}
+              {s.ctaLabel && s.ctaLink && (
+                <Link to={s.ctaLink} className={`mt-8 ${st.btnWhite}`} style={st.btnStyle}>
+                  {st.btnIcon?.pos === "left" && <SectionIcon def={st.btnIcon} />}
+                  {s.ctaLabel}
+                  {st.btnIcon ? (st.btnIcon.pos === "right" ? <SectionIcon def={st.btnIcon} /> : null) : <ArrowRight size={16} />}
+                </Link>
+              )}
+            </div>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  if (s.variant === "boxed-right" || s.variant === "boxed-left") {
+    const imageOnLeft = s.variant === "boxed-left";
+    const img = (s.image || s.bgVideo) && (
+      <div className="w-28 shrink-0 overflow-hidden rounded-lg shadow-md md:w-40">
+        <div className="aspect-[3/4] w-full">
+          <HeroMedia s={s} className="h-full w-full object-cover" />
+        </div>
+      </div>
+    );
+    return (
+      <section className={`w-full ${h} bg-secondary`} ref={heroRef}>
+        <div className="mx-auto flex h-full max-w-5xl flex-row items-center gap-6 px-6 py-12 md:gap-10">
+          {imageOnLeft ? img : null}
+          <div className="flex-1">
+            {s.eyebrow && <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground" style={st.eyebrowStyle}>{s.eyebrow}</p>}
+            <h1 className={`mt-3 ${st.h1} ${st.hFont}`} style={st.headingStyle}>{s.heading}</h1>
+            {s.body && <p className="mt-4 max-w-md text-muted-foreground" style={st.bodyStyle}>{s.body}</p>}
+            {s.ctaLabel && s.ctaLink && (
+              <Link to={s.ctaLink} className={`mt-6 inline-flex ${st.btn}`} style={st.btnStyle}>
+                {st.btnIcon?.pos === "left" && <SectionIcon def={st.btnIcon} />}
+                {s.ctaLabel}
+                {st.btnIcon ? (st.btnIcon.pos === "right" ? <SectionIcon def={st.btnIcon} /> : null) : <ArrowRight size={16} />}
+              </Link>
+            )}
+          </div>
+          {!imageOnLeft ? img : null}
         </div>
       </section>
     );
@@ -710,13 +838,26 @@ function Hero({ s }: { s: HeroSection }) {
 
 function FeaturedProducts({ s }: { s: FeaturedProductsSection }) {
   const st = useSectionStyles();
-  const { findProduct } = useVendorProducts();
-  // findProduct checks vendor products first, falls back to demo — so template sections
-  // with demo slugs keep showing demo products until the vendor picks their own.
-  const items = s.productSlugs.map(findProduct).filter(Boolean) as NonNullable<ReturnType<typeof findProduct>>[];
+  const { products, findProduct } = useVendorProducts();
+  // sourceMode "inventory" → the vendor's live products (or the demo fallback until
+  // the vendor uploads inventory). Otherwise map the template's product slugs, trying
+  // vendor products first and demo products as a fallback.
+  const items = (s.sourceMode === "inventory"
+    ? products.slice(0, 8)
+    : s.productSlugs.map(findProduct).filter(Boolean)
+  ) as NonNullable<ReturnType<typeof findProduct>>[];
   const linkPattern = s.productLink ?? "/product/:slug";
   const resolveLink = (slug: string) => linkPattern.replace(/:slug/g, slug);
   const useDefaultLink = linkPattern === "/product/:slug";
+
+  if (items.length === 0) {
+    return (
+      <section className="mx-auto max-w-7xl px-6 py-8">
+        {s.heading && <h2 className={`mb-4 text-center ${st.h2} ${st.hFont}`} style={st.headingStyle}>{s.heading}</h2>}
+        <p className="text-center text-sm text-muted-foreground">No products yet — add some in Inventory</p>
+      </section>
+    );
+  }
 
   if (s.variant === "list") {
     return (
@@ -4228,6 +4369,102 @@ function PricingPlansBlock({ s }: { s: PricingPlansSection }) {
   );
 }
 
+function useCountdown(target: string) {
+  const [left, setLeft] = useState<{ d: number; h: number; m: number; s: number } | null>(null);
+  useEffect(() => {
+    const calc = () => {
+      const t = new Date(target).getTime() - Date.now();
+      if (!Number.isFinite(t)) { setLeft(null); return; }
+      setLeft({
+        d: Math.max(0, Math.floor(t / 86400000)),
+        h: Math.max(0, Math.floor((t % 86400000) / 3600000)),
+        m: Math.max(0, Math.floor((t % 3600000) / 60000)),
+        s: Math.max(0, Math.floor((t % 60000) / 1000)),
+      });
+    };
+    calc();
+    const id = setInterval(calc, 1000);
+    return () => clearInterval(id);
+  }, [target]);
+  return left;
+}
+
+function CountdownBlock({ s }: { s: CountdownSection }) {
+  const st = useSectionStyles();
+  const left = useCountdown(s.targetDate);
+  const boxes = left ? [
+    { v: String(left.d).padStart(2, "0"), l: "Days" },
+    { v: String(left.h).padStart(2, "0"), l: "Hours" },
+    { v: String(left.m).padStart(2, "0"), l: "Minutes" },
+    { v: String(left.s).padStart(2, "0"), l: "Seconds" },
+  ] : [];
+  return (
+    <section className="mx-auto max-w-4xl px-6 py-10 text-center">
+      {s.heading && <h2 className={`${st.h2} ${st.hFont}`} style={st.headingStyle}>{s.heading}</h2>}
+      {s.body && <p className="mt-3 text-muted-foreground" style={st.bodyStyle}>{s.body}</p>}
+      {left ? (
+        <div className="mt-8 flex items-center justify-center gap-3 md:gap-5">
+          {boxes.map((b) => (
+            <div key={b.l} className="flex min-w-[72px] flex-col items-center rounded-lg border border-border bg-card p-4" style={st.cardStyle}>
+              <span className="text-3xl font-bold tabular-nums md:text-4xl" style={st.headingStyle}>{b.v}</span>
+              <span className="mt-1 text-[11px] uppercase tracking-wider text-muted-foreground">{b.l}</span>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="mt-6 text-sm text-muted-foreground">Offer has ended</p>
+      )}
+      {s.ctaLabel && s.ctaLink && (
+        <Link to={s.ctaLink} className={`mt-8 inline-flex ${st.btn}`} style={st.btnStyle}>
+          {st.btnIcon?.pos === "left" && <SectionIcon def={st.btnIcon} />}
+          {s.ctaLabel}
+          {st.btnIcon ? (st.btnIcon.pos === "right" ? <SectionIcon def={st.btnIcon} /> : null) : <ArrowRight size={16} />}
+        </Link>
+      )}
+    </section>
+  );
+}
+
+function StatsBlock({ s }: { s: StatsSection }) {
+  const st = useSectionStyles();
+  return (
+    <section className="mx-auto max-w-5xl px-6 py-10">
+      {s.heading && <h2 className={`mb-8 text-center ${st.h2} ${st.hFont}`} style={st.headingStyle}>{s.heading}</h2>}
+      <div className="grid grid-cols-2 gap-6 md:grid-cols-4">
+        {s.items.map((it, i) => (
+          <div key={i} className="text-center">
+            <p className={`${st.h1} ${st.hFont} text-3xl md:text-4xl`} style={st.headingStyle}>{it.value}</p>
+            <p className="mt-1 text-sm font-medium">{it.label}</p>
+            {it.description && <p className="mt-1 text-xs text-muted-foreground">{it.description}</p>}
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function TeamBlock({ s }: { s: TeamSection }) {
+  const st = useSectionStyles();
+  return (
+    <section className="mx-auto max-w-6xl px-6 py-10">
+      {s.heading && <h2 className={`mb-2 text-center ${st.h2} ${st.hFont}`} style={st.headingStyle}>{s.heading}</h2>}
+      {s.subheading && <p className="mb-8 text-center text-muted-foreground" style={st.bodyStyle}>{s.subheading}</p>}
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+        {s.members.map((m, i) => (
+          <div key={i} className="text-center">
+            {m.avatar
+              ? <img src={m.avatar} alt={m.name} className="mx-auto h-28 w-28 rounded-full object-cover" />
+              : <div className="mx-auto flex h-28 w-28 items-center justify-center rounded-full bg-secondary text-muted-foreground"><Person size={36} /></div>}
+            <p className="mt-4 text-base font-semibold">{m.name}</p>
+            <p className="text-sm text-muted-foreground">{m.role}</p>
+            {m.bio && <p className="mx-auto mt-2 max-w-xs text-xs text-muted-foreground">{m.bio}</p>}
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 export function SectionRenderer({ section, vendorId }: { section: Section; vendorId?: string }) {
   const [animRef, animStyle] = useScrollReveal(section.animation);
 
@@ -4276,6 +4513,9 @@ export function SectionRenderer({ section, vendorId }: { section: Section; vendo
       case "payment-methods": return <PaymentMethodsBlock s={section} />;
       case "columns": return <ColumnsBlock s={section} />;
       case "pricing-plans": return <PricingPlansBlock s={section} />;
+      case "countdown": return <CountdownBlock s={section} />;
+      case "stats": return <StatsBlock s={section} />;
+      case "team": return <TeamBlock s={section} />;
       case "custom": return <CustomSectionView s={section} />;
     }
   })();
