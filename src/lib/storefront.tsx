@@ -1503,6 +1503,49 @@ export const createEmptyTemplate = (name = "Blank template"): Template => ({
 
 export const ATELIER_THUMB =`data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 320 200'><rect width='320' height='200' fill='%23f8f6f2'/><rect y='0' width='320' height='88' fill='%232c2c2c'/><text x='160' y='40' font-size='18' fill='white' text-anchor='middle' font-family='Georgia,serif'>ATELIER</text><text x='160' y='60' font-size='7' fill='%23aaa' text-anchor='middle' font-family='sans-serif'>Considered objects for everyday life</text><rect x='16' y='100' width='86' height='64' rx='3' fill='%23e5e1d8'/><rect x='117' y='100' width='86' height='64' rx='3' fill='%23e5e1d8'/><rect x='218' y='100' width='86' height='64' rx='3' fill='%23e5e1d8'/><rect x='16' y='170' width='55' height='4' rx='2' fill='%23ccc'/><rect x='117' y='170' width='55' height='4' rx='2' fill='%23ccc'/><rect x='218' y='170' width='55' height='4' rx='2' fill='%23ccc'/></svg>`;
 
+/**
+ * Rewrite a deployed vendor template's internal links so navigation stays inside
+ * the vendor store. Static page links (/about, /shop, custom pages, section CTAs)
+ * become /@username/…; platform-owned routes (/product/*, /checkout, /search, …)
+ * are left untouched because they are vendor-scoped via setActiveVendorId.
+ * Page slugs are preserved so subpath routing still matches.
+ */
+export function scopeTemplateToVendor(tpl: Template, username: string): Template {
+  const owner = username.toLowerCase();
+  const PLATFORM_ROUTES = new Set([
+    "/product", "/checkout", "/search", "/order", "/invoice", "/review",
+    "/login", "/admin", "/admin-login", "/dashboard", "/templates",
+  ]);
+  const ASSET_EXT = /\.(png|jpe?g|gif|webp|avif|svg|ico|mp4|webm|ogg|pdf|woff2?|ttf|eot|json)$/i;
+
+  const prefix = (href: string): string => {
+    if (!href.startsWith("/") || href.startsWith("//") || href.startsWith("/@")) return href;
+    const path = href.split(/[?#]/)[0];
+    const first = "/" + (path.split("/").filter(Boolean)[0] ?? "");
+    if (PLATFORM_ROUTES.has(first)) return href;
+    if (ASSET_EXT.test(path)) return href;
+    return `/@${owner}${href === "/" ? "" : href}`;
+  };
+
+  const rewriteValue = (v: unknown): unknown => {
+    if (typeof v === "string") return prefix(v);
+    if (Array.isArray(v)) return v.map(rewriteValue);
+    if (v && typeof v === "object") {
+      const out: Record<string, unknown> = {};
+      for (const [k, x] of Object.entries(v)) out[k] = rewriteValue(x);
+      return out;
+    }
+    return v;
+  };
+
+  return {
+    ...tpl,
+    navbar: rewriteValue(tpl.navbar) as NavbarConfig,
+    footer: rewriteValue(tpl.footer) as FooterConfig,
+    pages: tpl.pages.map((p) => ({ ...p, sections: rewriteValue(p.sections) as Section[] })),
+  };
+}
+
 /* ------------- State ------------- */
 
 type Ctx = {
@@ -1535,6 +1578,13 @@ type Ctx = {
   // vendor-configured delivery charges
   deliveryFees: DeliveryFees;
   setDeliveryFees: (fees: Partial<DeliveryFees>) => void;
+  /**
+   * Scoped vendor-storefront hydration. Overrides pages, navbar, footer, theme,
+   * design tokens (fonts), payment config, and referrals with a vendor template
+   * so deployed shops never fall back to admin/default data. Pass null to
+   * restore the admin editor state. Not persisted to localStorage.
+   */
+  hydrateVendorTemplate: (tpl: Template | null) => void;
   // design tokens
   designTokens: DesignTokens;
   updateDesignTokens: (patch: Partial<DesignTokens>) => void;
@@ -1662,6 +1712,10 @@ export function StorefrontProvider({ children }: { children: ReactNode }) {
   const [hydrated, setHydrated] = useState(false);
   // Vendor delivery charges — hydated from the live store API (not persisted in the template).
   const [deliveryFeesState, setDeliveryFeesState] = useState<DeliveryFees>(defaultDeliveryFees);
+  // Vendor storefront override — set while viewing a deployed @username shop so the
+  // whole template (pages, fonts, navbar, footer, theme, payments) drives the UI.
+  // Deliberately separate from `state` so it is never persisted to localStorage.
+  const [vendorTpl, setVendorTpl] = useState<Template | null>(null);
 
   // Undo / redo history (stored in refs to avoid spurious re-renders)
   const historyRef = useRef<Persisted[]>([]);
@@ -1689,18 +1743,21 @@ export function StorefrontProvider({ children }: { children: ReactNode }) {
     if (hydrated) localStorage.setItem(getStorageKey(), JSON.stringify(state));
   }, [state, hydrated]);
 
-  useEffect(() => {
-    if (typeof document === "undefined") return;
-    document.documentElement.classList.toggle("dark", state.theme === "dark");
-  }, [state.theme]);
-
   const active = state.templates.find((t) => t.id === state.activeTemplateId) ?? state.templates[0];
   const activeDeliveryFees = deliveryFeesState;
   const activePage = active.pages.find((p) => p.id === activePageId) ?? active.pages[0];
+  // Effective values — vendor scope wins over admin editor state when present.
+  const effectiveTheme = vendorTpl?.theme ?? state.theme;
+  const effectiveTokens = vendorTpl?.designTokens ?? active.designTokens ?? defaultDesignTokens;
 
   useEffect(() => {
     if (typeof document === "undefined") return;
-    const tokens = active.designTokens ?? defaultDesignTokens;
+    document.documentElement.classList.toggle("dark", effectiveTheme === "dark");
+  }, [effectiveTheme]);
+
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const tokens = effectiveTokens;
     const hMeta = HEADING_FONT_META[tokens.fontHeading ?? "serif"] ?? HEADING_FONT_META.serif;
     const bMeta = BODY_FONT_META[tokens.fontBody ?? "inherit"] ?? BODY_FONT_META["inherit"];
     const needed = [hMeta.googleId, bMeta.googleId].filter((id): id is string => !!id);
@@ -1715,7 +1772,7 @@ export function StorefrontProvider({ children }: { children: ReactNode }) {
       link.setAttribute("data-kf", googleId);
       document.head.appendChild(link);
     });
-  }, [active.designTokens]);
+  }, [effectiveTokens]);
 
   // Record current state to history before a mutation
   const recordHistory = (prev: Persisted) => {
@@ -1760,10 +1817,10 @@ export function StorefrontProvider({ children }: { children: ReactNode }) {
   };
 
   const value = useMemo<Ctx>(() => ({
-    pages: active.pages,
-    navbar: active.navbar,
-    footer: active.footer,
-    theme: state.theme,
+    pages: vendorTpl?.pages ?? active.pages,
+    navbar: vendorTpl?.navbar ?? active.navbar,
+    footer: vendorTpl?.footer ?? active.footer,
+    theme: effectiveTheme,
     setTheme: (t) => setState((s) => ({ ...s, theme: t })),
     activePageId: activePage.id,
     setActivePageId: setActivePageIdState,
@@ -1825,7 +1882,7 @@ export function StorefrontProvider({ children }: { children: ReactNode }) {
     updateNavbar: (patch) => mutateActive((t) => ({ ...t, navbar: { ...t.navbar, ...patch } })),
     updateFooter: (patch) => mutateActive((t) => ({ ...t, footer: { ...t.footer, ...patch } })),
 
-    paymentConfig: active.paymentConfig ?? defaultPaymentConfig,
+    paymentConfig: vendorTpl?.paymentConfig ?? active.paymentConfig ?? defaultPaymentConfig,
     updatePaymentConfig: (patch: Partial<PaymentConfig>) => mutateActive((t: Template) => ({
       ...t,
       paymentConfig: { ...(t.paymentConfig ?? defaultPaymentConfig), ...patch },
@@ -1834,13 +1891,15 @@ export function StorefrontProvider({ children }: { children: ReactNode }) {
     deliveryFees: activeDeliveryFees,
     setDeliveryFees: (fees: Partial<DeliveryFees>) => setDeliveryFeesState((prev) => ({ ...prev, ...fees })),
 
-    designTokens: active.designTokens ?? defaultDesignTokens,
+    hydrateVendorTemplate: (tpl) => setVendorTpl(tpl),
+
+    designTokens: effectiveTokens,
     updateDesignTokens: (patch: Partial<DesignTokens>) => mutateActive((t: Template) => ({
       ...t,
       designTokens: { ...(t.designTokens ?? defaultDesignTokens), ...patch },
     })),
 
-    referrals: active.referrals ?? { enabled: false },
+    referrals: vendorTpl?.referrals ?? active.referrals ?? { enabled: false },
     updateReferrals: (patch: Partial<ReferralSettings>) => mutateActive((t: Template) => ({
       ...t,
       referrals: { ...(t.referrals ?? { enabled: false }), ...patch },
@@ -1928,11 +1987,11 @@ export function StorefrontProvider({ children }: { children: ReactNode }) {
         return true;
       } catch { return false; }
     },
-  }), [state, activePageId, active, activePage, canUndo, canRedo]);
+  }), [state, activePageId, active, activePage, canUndo, canRedo, vendorTpl, effectiveTheme, effectiveTokens]);
 
   return (
     <StoreCtx.Provider value={value}>
-      <DesignCtx.Provider value={active.designTokens ?? defaultDesignTokens}>
+      <DesignCtx.Provider value={effectiveTokens}>
         {children}
       </DesignCtx.Provider>
     </StoreCtx.Provider>

@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useLocation } from "@tanstack/react-router";
 import { SectionRenderer } from "@/components/sections";
-import { useStorefront } from "@/lib/storefront";
+import { scopeTemplateToVendor, useStorefront } from "@/lib/storefront";
 import { setActiveVendorId } from "@/lib/vendorProducts";
 import { applyVendorSEO, setFavicon } from "@/lib/seo";
 import { useEffect, useRef, useState } from "react";
@@ -72,18 +72,18 @@ function StorePausedPage({ storeName, username }: { storeName: string; username:
   );
 }
 
-function VendorStoreView({ username }: { username: string }) {
+function VendorStoreView({ username, subpath }: { username: string; subpath: string }) {
   const [status, setStatus] = useState<"loading" | "ok" | "error" | "paused">("loading");
   const [sections, setSections] = useState<Section[]>([]);
   const [storeName, setStoreName] = useState("");
   const [vendorId, setVendorId] = useState("");
   const [launchUrl, setLaunchUrl] = useState("");
-  const { updateNavbar, updateFooter, setTheme, updateReferrals, setDeliveryFees, updatePaymentConfig } = useStorefront();
-  const chromeActionsRef = useRef({ updateNavbar, updateFooter, setTheme, updateReferrals, setDeliveryFees, updatePaymentConfig });
+  const { hydrateVendorTemplate, setDeliveryFees } = useStorefront();
+  const actionsRef = useRef({ hydrateVendorTemplate, setDeliveryFees });
 
   useEffect(() => {
-    chromeActionsRef.current = { updateNavbar, updateFooter, setTheme, updateReferrals, setDeliveryFees, updatePaymentConfig };
-  }, [setTheme, updateFooter, updateNavbar, updateReferrals, setDeliveryFees, updatePaymentConfig]);
+    actionsRef.current = { hydrateVendorTemplate, setDeliveryFees };
+  }, [hydrateVendorTemplate, setDeliveryFees]);
 
   useEffect(() => {
     const base = import.meta.env.VITE_API_BASE ?? "/api";
@@ -115,28 +115,33 @@ function VendorStoreView({ username }: { username: string }) {
           return;
         }
 
-        const tpl: Template = JSON.parse(json.templateJson);
-        const homePage = tpl.pages?.find((p) => p.slug === "/" || p.slug === "home") ?? tpl.pages?.[0];
+        // Hydrate the WHOLE vendor template (pages, navbar, footer, theme,
+        // fonts/designTokens, payments, referrals) so the shop never falls back
+        // to admin/default template data. Internal links are scoped to @username.
+        const tpl = scopeTemplateToVendor(JSON.parse(json.templateJson) as Template, slug);
         const vid = json.vendorId ?? "";
         const url = json.launchUrl ?? `https://kiosk.store/@${username}`;
 
-        setSections(homePage?.sections ?? []);
+        actionsRef.current.hydrateVendorTemplate(tpl);
+        if (json.deliveryFees) actionsRef.current.setDeliveryFees(json.deliveryFees);
+
+        // Resolve the page for the current subpath, falling back to home.
+        const norm = (s: string) => s.replace(/\/+$/, "") || "/";
+        const sub = subpath ? "/" + subpath.replace(/^\/+|\/+$/g, "") : "/";
+        const page =
+          tpl.pages?.find((p) => norm(p.slug) === norm(sub)) ??
+          tpl.pages?.find((p) => p.slug === "/" || p.slug === "home") ??
+          tpl.pages?.[0];
+
+        setSections(page?.sections ?? []);
         setVendorId(vid);
         setLaunchUrl(url);
         if (vid) setActiveVendorId(vid);
 
-        const chromeActions = chromeActionsRef.current;
-        if (tpl.navbar) chromeActions.updateNavbar(tpl.navbar);
-        if (tpl.footer) chromeActions.updateFooter(tpl.footer);
-        if (tpl.theme) chromeActions.setTheme(tpl.theme);
-        if (tpl.referrals) chromeActions.updateReferrals(tpl.referrals);
-        if (tpl.paymentConfig) chromeActions.updatePaymentConfig(tpl.paymentConfig);
-        if (json.deliveryFees) chromeActions.setDeliveryFees(json.deliveryFees);
-
         // SEO: pick first hero image if available
-        const heroSection = homePage?.sections?.find((s) => s.type === "hero" && (s as any).image);
+        const heroSection = page?.sections?.find((s) => s.type === "hero" && (s as any).image);
         const heroImage = heroSection ? (heroSection as any).image : undefined;
-        applyVendorSEO(name, username, url, heroImage);
+        applyVendorSEO(name, slug, url, heroImage);
 
         // Favicon: vendor logo → Kiosk platform logo fallback
         setFavicon(tpl.navbar?.logoImage || "/kiosk-favicon.png");
@@ -150,7 +155,7 @@ function VendorStoreView({ username }: { username: string }) {
     return () => {
       cancelled = true;
     };
-  }, [username]);
+  }, [username, subpath]);
 
   if (status === "loading") {
     return (
@@ -201,12 +206,18 @@ function VendorStoreView({ username }: { username: string }) {
 
 function CustomPageView() {
   const location = useLocation();
-  const { pages } = useStorefront();
+  const { pages, hydrateVendorTemplate } = useStorefront();
   const pathname = location.pathname.replace(/\/$/, "") || "/";
 
-  const vendorMatch = pathname.match(/^\/@([a-z0-9_]+)$/i);
+  const vendorMatch = pathname.match(/^\/@([a-z0-9_]+)(?:\/(.*))?$/i);
+
+  // Leaving a vendor storefront restores the admin/platform editor scope.
+  useEffect(() => {
+    if (!/^\/@([a-z0-9_]+)(?:\/(.*))?$/i.test(pathname)) hydrateVendorTemplate(null);
+  }, [pathname, hydrateVendorTemplate]);
+
   if (vendorMatch) {
-    return <VendorStoreView username={vendorMatch[1]!} />;
+    return <VendorStoreView username={vendorMatch[1]!.toLowerCase()} subpath={vendorMatch[2] ?? ""} />;
   }
 
   const page = pages.find((candidate) => {
