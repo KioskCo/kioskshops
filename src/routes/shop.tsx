@@ -46,31 +46,39 @@ function Shop() {
   }, [navbar.brand, products.length]);
   const shopSections = pages.find((p) => p.slug === "/shop")?.sections ?? [];
 
+  // The vendor's own template drives this page completely once they've added
+  // any sections to it (typically a "shop-grid" section, whose Layout/Columns/
+  // filter settings then actually take effect). The generic grid below is a
+  // fallback for an empty Shop page only — it used to render unconditionally
+  // underneath the template sections, so a shop-grid section's own variant
+  // change was competing with (and getting drowned out by) an always-present,
+  // always-identical second grid that ignored that setting entirely.
+  if (shopSections.length > 0) {
+    return <>{shopSections.map((s) => <SectionRenderer key={s.id} section={s} />)}</>;
+  }
+
   return (
-    <>
-      {shopSections.map((s) => <SectionRenderer key={s.id} section={s} />)}
-      <div className="mx-auto max-w-7xl px-6 py-16">
-        <div className="flex flex-col items-start justify-between gap-6 md:flex-row md:items-end">
-          <div>
-            <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">The shop</p>
-            <h1 className="mt-2 font-serif text-5xl">Everything we make</h1>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {["All", ...uniqueCategories].map((c) => (
-              <button
-                key={c}
-                onClick={() => setCat(c)}
-                className={`h-9 rounded-full border px-4 text-sm transition-colors ${cat === c ? "border-primary bg-primary text-primary-foreground" : "border-border hover:bg-secondary"}`}
-              >
-                {c}
-              </button>
-            ))}
-          </div>
+    <div className="mx-auto max-w-7xl px-6 py-16">
+      <div className="flex flex-col items-start justify-between gap-6 md:flex-row md:items-end">
+        <div>
+          <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">The shop</p>
+          <h1 className="mt-2 font-serif text-5xl">Everything we make</h1>
         </div>
-        <div className="mt-12 grid grid-cols-1 gap-x-8 gap-y-12 sm:grid-cols-2 lg:grid-cols-3">
-          {filtered.map((p) => <ProductCard key={p.slug} product={p} />)}
+        <div className="flex flex-wrap gap-2">
+          {["All", ...uniqueCategories].map((c) => (
+            <button
+              key={c}
+              onClick={() => setCat(c)}
+              className={`h-9 rounded-full border px-4 text-sm transition-colors ${cat === c ? "border-primary bg-primary text-primary-foreground" : "border-border hover:bg-secondary"}`}
+            >
+              {c}
+            </button>
+          ))}
         </div>
       </div>
-    </>
+      <div className="mt-12 grid grid-cols-1 gap-x-8 gap-y-12 sm:grid-cols-2 lg:grid-cols-3">
+        {filtered.map((p) => <ProductCard key={p.slug} product={p} />)}
+      </div>
+    </div>
   );
 }
