@@ -1,4 +1,4 @@
-import { Link, useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate, useLocation } from "@tanstack/react-router";
 import {
   List, Search, Bag, XLg, PersonCircle, ChevronRight, ArrowRight,
   Person, PersonVcard, People, BagCheck, BagPlus, Cart, Cart3, Gift, Shop,
@@ -167,6 +167,13 @@ export function SiteHeader() {
   const { count, setOpen } = useCart();
   const { navbar } = useStorefront();
   const designTokens = useDesignTokens();
+  // The logo must always resolve back to THIS vendor's shop — on a
+  // path-based store that's /@username, not the platform's bare "/" (which
+  // is a totally different, non-shop page). Custom domains don't have a
+  // /@username segment at all, so "/" is already correct for them.
+  const { pathname } = useLocation();
+  const vendorPrefix = pathname.match(/^\/@[a-z0-9_]+/i)?.[0];
+  const shopHome = vendorPrefix ?? "/";
   // Brand wordmark follows its own "Brand font" override when set, otherwise
   // falls back to the store-wide heading font — never plain browser default.
   const brandMeta = HEADING_FONT_META[navbar.brandFont ?? designTokens.fontHeading ?? "serif"] ?? HEADING_FONT_META.serif;
@@ -264,7 +271,7 @@ export function SiteHeader() {
   );
 
   const logoBlock = (
-    <Link to="/" className="flex items-center gap-0.5 text-xl font-semibold tracking-tight">
+    <Link to={shopHome} className="flex items-center gap-0.5 text-xl font-semibold tracking-tight">
       {navbar.logoImage && (logoMode === "logo" || logoMode === "both") && (
         <img src={navbar.logoImage} alt={navbar.brand} style={{ height: `${logoHeight}px`, maxWidth: `${logoHeight * 2.2}px`, objectFit: "contain", objectPosition: "left center" }} />
       )}
