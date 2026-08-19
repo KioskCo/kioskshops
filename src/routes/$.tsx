@@ -47,6 +47,7 @@ function VendorStoreView({ username, subpath }: { username: string; subpath: str
         if (cancelled) return;
 
         if (!json.success) {
+          actionsRef.current.hydrateVendorTemplate(null);
           setStatus("error");
           return;
         }
@@ -56,11 +57,13 @@ function VendorStoreView({ username, subpath }: { username: string; subpath: str
 
         // Store exists but owner paused it — show maintenance page
         if (json.paused) {
+          actionsRef.current.hydrateVendorTemplate(null);
           setStatus("paused");
           return;
         }
 
         if (!json.templateJson) {
+          actionsRef.current.hydrateVendorTemplate(null);
           setStatus("error");
           return;
         }
@@ -100,7 +103,10 @@ function VendorStoreView({ username, subpath }: { username: string; subpath: str
         setStatus("ok");
       })
       .catch(() => {
-        if (!cancelled) setStatus("error");
+        if (!cancelled) {
+          actionsRef.current.hydrateVendorTemplate(null);
+          setStatus("error");
+        }
       });
 
     return () => {

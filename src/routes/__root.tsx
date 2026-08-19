@@ -247,6 +247,39 @@ function PwaSetup() {
   return null;
 }
 
+// Stand-in for the header while vendor scope is still being fetched on a
+// fresh load — same height, no brand text/links, so nothing here ever shows
+// the bundled Atelier branding before the real one is known. This is what
+// actually matters on a slow connection: the window this covers is exactly
+// as long as the fetch takes.
+function HeaderSkeleton() {
+  return (
+    <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur">
+      <div className="mx-auto flex h-16 max-w-7xl items-center gap-3 px-4 md:px-6">
+        <div className="h-5 w-28 animate-pulse rounded bg-secondary" />
+        <div className="ml-auto flex gap-2">
+          <div className="h-9 w-9 animate-pulse rounded-full bg-secondary" />
+          <div className="h-9 w-9 animate-pulse rounded-full bg-secondary" />
+        </div>
+      </div>
+    </header>
+  );
+}
+
+function AppShell({ isAdmin }: { isAdmin: boolean }) {
+  const { vendorHydrating } = useStorefront();
+  const showChrome = !isAdmin;
+  return (
+    <div className="flex min-h-screen flex-col">
+      {showChrome && (vendorHydrating ? <HeaderSkeleton /> : <SiteHeader />)}
+      <main className="flex-1"><Outlet /></main>
+      {/* Footer sits below the fold — skip it outright while hydrating rather
+          than building a second skeleton nobody sees during the brief window. */}
+      {showChrome && !vendorHydrating && <SiteFooter />}
+    </div>
+  );
+}
+
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const { pathname } = useLocation();
@@ -265,11 +298,7 @@ function RootComponent() {
         <PwaSetup />
         <VendorProductsProvider>
         <CartProvider>
-          <div className="flex min-h-screen flex-col">
-            {!isAdmin && <SiteHeader />}
-            <main className="flex-1"><Outlet /></main>
-            {!isAdmin && <SiteFooter />}
-          </div>
+          <AppShell isAdmin={isAdmin} />
           <CartDrawer />
         </CartProvider>
         </VendorProductsProvider>

@@ -2,15 +2,19 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { useStorefront, isPlatformHost, type Template } from "@/lib/storefront";
 import { SectionRenderer } from "@/components/sections";
-import { applyStoreSEO, applyVendorSEO, setFavicon } from "@/lib/seo";
+import { applyVendorSEO, setFavicon } from "@/lib/seo";
 import { setActiveVendorId } from "@/lib/vendorProducts";
 import { StorePausedPage } from "@/components/store-paused";
 
+// This static head() is the SSR-time fallback before any client-side SEO call
+// runs — it's shared by the platform landing page AND a custom domain's very
+// first paint (CustomDomainView calls applyVendorSEO once its fetch resolves,
+// overriding this). Kept neutral rather than branded as any specific store.
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Our Store — Shop online" },
-      { name: "description", content: "Browse and shop our collection online." },
+      { title: "Kiosk — Online store" },
+      { name: "description", content: "A storefront powered by Kiosk." },
     ],
   }),
   component: Index,
@@ -123,32 +127,33 @@ function CustomDomainView({ domain }: { domain: string }) {
   );
 }
 
+/**
+ * The platform's own bare-domain landing page (keeosk.store/ or the
+ * workers.dev URL with no /@username and no custom domain). This is NOT a
+ * vendor's shop — it must never render the bundled Atelier starter template
+ * as if it were one. A vendor testing the wrong URL (their own dashboard
+ * link is always /@username) would otherwise see a fully "working" demo
+ * shop and reasonably conclude their real edits aren't taking effect.
+ */
+function PlatformLanding() {
+  return (
+    <div className="flex min-h-[70vh] flex-col items-center justify-center px-6 text-center">
+      <p className="font-serif text-4xl font-semibold tracking-tight">Kiosk</p>
+      <p className="mt-3 max-w-md text-muted-foreground">
+        This is the Kiosk platform domain, not a store. Every vendor's shop lives at its own address —
+        <span className="font-medium text-foreground"> keeosk.store/@yourusername</span>, or a connected custom domain.
+      </p>
+    </div>
+  );
+}
+
 function Index() {
-  const { pages, navbar, footer } = useStorefront();
-
   const customDomain = getCustomDomain();
-  const home = pages.find((p) => p.slug === "/") ?? pages[0];
-
-  useEffect(() => {
-    if (customDomain) return;
-    const heroSection = home?.sections?.find((s) => s.type === "hero" && (s as any).image);
-    const heroImage = heroSection ? (heroSection as any).image : undefined;
-    applyStoreSEO(navbar.brand, footer.tagline, window.location.href, heroImage);
-  }, [navbar.brand, footer.tagline, home, customDomain]);
 
   // On a custom domain, hand off to the domain-aware loader
   if (customDomain) {
     return <CustomDomainView domain={customDomain} />;
   }
 
-  const allSections = home?.sections ?? [];
-  const announcements = allSections.filter((s) => s.type === "announcement");
-  const mainSections = allSections.filter((s) => s.type !== "announcement");
-
-  return (
-    <div>
-      {announcements.map((s) => <SectionRenderer key={s.id} section={s} />)}
-      {mainSections.map((s) => <SectionRenderer key={s.id} section={s} />)}
-    </div>
-  );
+  return <PlatformLanding />;
 }

@@ -19,7 +19,7 @@ import {
 import { useServerFn } from "@tanstack/react-start";
 const Link = RouterLink as unknown as React.ComponentType<{ to: string; search?: Record<string, unknown>; className?: string; style?: React.CSSProperties; children?: React.ReactNode }>;
 import { ProductCard } from "@/components/product-card";
-import { Carousel, CarouselContent, CarouselItem, CarouselPrevious, CarouselNext } from "@/components/ui/carousel";
+import { Carousel, CarouselContent, CarouselItem, CarouselPrevious, CarouselNext, useCarousel } from "@/components/ui/carousel";
 import { formatPrice, NIGERIAN_STATES, type Product } from "@/lib/products";
 import { useVendorProducts } from "@/lib/vendorProducts";
 import { useCart } from "@/lib/cart";
@@ -392,6 +392,38 @@ function HeroMedia({ s, className, style }: { s: HeroSection; className?: string
   return null;
 }
 
+/** Pagination dots for a Carousel — one per slide, active one highlighted, click to jump. Must render inside a <Carousel>. */
+function CarouselDots({ count, light }: { count: number; light?: boolean }) {
+  const { api } = useCarousel();
+  const [selected, setSelected] = useState(0);
+
+  useEffect(() => {
+    if (!api) return;
+    const onSelect = () => setSelected(api.selectedScrollSnap());
+    onSelect();
+    api.on("select", onSelect);
+    api.on("reInit", onSelect);
+    return () => { api.off("select", onSelect); };
+  }, [api]);
+
+  if (count <= 1) return null;
+  return (
+    <div className="absolute inset-x-0 bottom-4 z-10 flex items-center justify-center gap-2">
+      {Array.from({ length: count }, (_, i) => (
+        <button
+          key={i}
+          type="button"
+          aria-label={`Go to slide ${i + 1}`}
+          onClick={() => api?.scrollTo(i)}
+          className={`h-2 rounded-full transition-all ${i === selected ? "w-6" : "w-2"} ${
+            light ? (i === selected ? "bg-white" : "bg-white/40 hover:bg-white/60") : (i === selected ? "bg-primary" : "bg-primary/30 hover:bg-primary/50")
+          }`}
+        />
+      ))}
+    </div>
+  );
+}
+
 function Hero({ s }: { s: HeroSection }) {
   const st = useSectionStyles();
   const h = s.height === "sm" ? "h-[50vh] min-h-[360px]" : s.height === "lg" ? "h-[80vh] min-h-[560px]" : "h-[70vh] min-h-[480px]";
@@ -444,6 +476,7 @@ function Hero({ s }: { s: HeroSection }) {
               <CarouselNext className="right-3 border-0 bg-black/30 text-white hover:bg-black/40 hover:text-white" />
             </>
           )}
+          <CarouselDots count={slides.length} light />
         </Carousel>
       </section>
     );

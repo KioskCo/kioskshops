@@ -1,10 +1,34 @@
 import { Link } from "@tanstack/react-router";
 import { XLg, DashLg, PlusLg } from "react-bootstrap-icons";
 import { useCart } from "@/lib/cart";
+import { useStorefront, type CartDrawerStyle } from "@/lib/storefront";
 import { formatPrice } from "@/lib/products";
+
+// Cart panel: position/sizing per navbar.cartDrawerStyle, plus which
+// direction it's hidden off-screen toward before opening.
+const PANEL_CLASS: Record<CartDrawerStyle, string> = {
+  right: "right-0 top-0 h-full w-full max-w-md",
+  left: "left-0 top-0 h-full w-full max-w-md",
+  bottom: "left-0 bottom-0 w-full max-h-[85vh] rounded-t-2xl",
+  center: "left-1/2 top-1/2 max-h-[85vh] w-full max-w-md rounded-2xl",
+};
+const HIDDEN_TRANSFORM: Record<CartDrawerStyle, string> = {
+  right: "translate-x-full",
+  left: "-translate-x-full",
+  bottom: "translate-y-full",
+  center: "translate-x-[-50%] translate-y-[150%]",
+};
+const SHOWN_TRANSFORM: Record<CartDrawerStyle, string> = {
+  right: "translate-x-0",
+  left: "translate-x-0",
+  bottom: "translate-y-0",
+  center: "translate-x-[-50%] translate-y-[-50%]",
+};
 
 export function CartDrawer() {
   const { open, setOpen, detailed, subtotal, setQty, remove, count } = useCart();
+  const { navbar } = useStorefront();
+  const style = navbar.cartDrawerStyle ?? "right";
   return (
     <>
       <div
@@ -12,7 +36,7 @@ export function CartDrawer() {
         onClick={() => setOpen(false)}
       />
       <aside
-        className={`fixed right-0 top-0 z-50 flex h-full w-full max-w-md flex-col bg-background shadow-2xl transition-transform ${open ? "translate-x-0" : "translate-x-full"}`}
+        className={`fixed z-50 flex flex-col bg-background shadow-2xl transition-transform ${PANEL_CLASS[style]} ${open ? SHOWN_TRANSFORM[style] : HIDDEN_TRANSFORM[style]}`}
       >
         <div className="flex items-center justify-between border-b border-border px-6 py-5">
           <h2 className="font-serif text-2xl">Your bag <span className="text-muted-foreground text-base">({count})</span></h2>

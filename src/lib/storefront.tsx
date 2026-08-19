@@ -1232,6 +1232,8 @@ export type NavbarStyle = "default" | "transparent" | "filled" | "minimal" | "bo
 export type SidebarAnimation = "slide" | "fade" | "spring" | "bounce" | "none";
 export type SidebarListStyle = "plain" | "chevron" | "arrow" | "dot" | "numbered";
 export type NavbarLayout = "logo-left" | "logo-center" | "logo-right";
+export type MobileMenuStyle = "left" | "right" | "bottom" | "fullscreen";
+export type CartDrawerStyle = "right" | "left" | "bottom" | "center";
 export type NavbarConfig = {
   brand: string;
   logoImage?: string;
@@ -1260,6 +1262,10 @@ export type NavbarConfig = {
   brandFont?: FontHeading;
   /** Custom font size for the brand name */
   brandFontSize?: number;
+  /** Which edge/shape the mobile menu panel opens from (default: "left") */
+  mobileMenuStyle?: MobileMenuStyle;
+  /** Which edge/shape the cart panel opens from (default: "right") */
+  cartDrawerStyle?: CartDrawerStyle;
   ctaButtons?: Array<{
     label: string;
     href: string;
@@ -1806,7 +1812,12 @@ export function StorefrontProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (typeof window === "undefined") return;
     const path = window.location.pathname;
-    if (/^\/@[a-z0-9_]+/i.test(path)) { setVendorHydrating(false); return; } // $.tsx owns this
+    // $.tsx owns hydration for these — leave vendorHydrating as-is (still true)
+    // so it keeps reflecting THAT fetch's real progress; it calls
+    // hydrateVendorTemplate() on both success and failure, which is what
+    // actually resolves it, rather than us short-circuiting it to false here
+    // before the real fetch has even started.
+    if (/^\/@[a-z0-9_]+/i.test(path)) return;
     // The admin/template-builder routes are the local editor itself — they must
     // keep reading/writing `active` (the in-progress draft), never a fetched
     // read-only vendor snapshot, even if this browser tab previously visited a

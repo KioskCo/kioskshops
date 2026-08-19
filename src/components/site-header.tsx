@@ -131,6 +131,28 @@ const SIDEBAR_EASING: Record<string, string> = {
   none: "linear",
 };
 
+// Mobile menu panel: position/sizing per navbar.mobileMenuStyle, plus the
+// transform it slides in from/to (fade-style animation ignores these and
+// uses opacity instead — see SIDEBAR_EASING usage at the call site).
+const MENU_PANEL_CLASS: Record<string, string> = {
+  left: "left-0 top-0 h-full w-72 border-r border-border",
+  right: "right-0 top-0 h-full w-72 border-l border-border",
+  bottom: "left-0 bottom-0 w-full max-h-[85vh] overflow-y-auto rounded-t-2xl border-t border-border",
+  fullscreen: "inset-0 h-full w-full",
+};
+const MENU_PANEL_HIDDEN: Record<string, string> = {
+  left: "translateX(-100%)",
+  right: "translateX(100%)",
+  bottom: "translateY(100%)",
+  fullscreen: "translateY(100%)",
+};
+const MENU_PANEL_SHOWN: Record<string, string> = {
+  left: "translateX(0)",
+  right: "translateX(0)",
+  bottom: "translateY(0)",
+  fullscreen: "translateY(0)",
+};
+
 function ListMarker({ style, index }: { style?: string; index: number }) {
   switch (style) {
     case "chevron": return <ChevronRight size={12} className="shrink-0 opacity-40" />;
@@ -177,6 +199,7 @@ export function SiteHeader() {
   const logoMode = navbar.logoMode ?? "text";
   const logoHeight = navbar.logoHeight ?? 28;
   const sidebarAnim = navbar.sidebarAnimation ?? "slide";
+  const menuStyle = navbar.mobileMenuStyle ?? "left";
   const SearchIcon = SEARCH_ICONS[navbar.searchIcon ?? "search-outline"] ?? Search;
   const ProfileIcon = PROFILE_ICONS[navbar.profileIcon ?? "person-circle-outline"] ?? PersonCircle;
   const CartIcon = CART_ICONS[navbar.cartIcon ?? "bag-outline"] ?? Bag;
@@ -382,7 +405,7 @@ export function SiteHeader() {
         <div className="fixed inset-0 z-[200] md:hidden" onClick={closeMobile}>
           <div className={`absolute inset-0 bg-black/50 transition-opacity duration-300 ${mobileVisible ? "opacity-100" : "opacity-0"}`} />
           <div
-            className="absolute left-0 top-0 h-full w-72 border-r border-border p-5 shadow-2xl"
+            className={`absolute p-5 shadow-2xl ${MENU_PANEL_CLASS[menuStyle]}`}
             style={{
               backgroundColor: "var(--background)",
               transitionProperty: sidebarAnim === "fade" ? "opacity" : sidebarAnim === "none" ? "none" : "transform",
@@ -390,7 +413,7 @@ export function SiteHeader() {
               transitionTimingFunction: SIDEBAR_EASING[sidebarAnim],
               ...(sidebarAnim === "fade"
                 ? { opacity: mobileVisible ? 1 : 0 }
-                : { transform: mobileVisible ? "translateX(0)" : "translateX(-100%)" }),
+                : { transform: mobileVisible ? MENU_PANEL_SHOWN[menuStyle] : MENU_PANEL_HIDDEN[menuStyle] }),
             }}
             onClick={(e) => e.stopPropagation()}
           >
