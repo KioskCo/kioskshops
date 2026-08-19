@@ -1631,6 +1631,10 @@ type Ctx = {
    * restore the admin editor state. Not persisted to localStorage.
    */
   hydrateVendorTemplate: (tpl: Template | null) => void;
+  /** True until vendor-scope hydration has resolved one way or the other on
+   * this mount. Routes whose behavior depends on vendor choices (payment
+   * provider, above all) should avoid acting on defaults while this is true. */
+  vendorHydrating: boolean;
   // design tokens
   designTokens: DesignTokens;
   updateDesignTokens: (patch: Partial<DesignTokens>) => void;
@@ -1670,6 +1674,31 @@ function getStorageKey(): string {
     const vid = typeof localStorage !== "undefined" ? localStorage.getItem("kiosk_editor_active_vendor") : null;
     return vid ? `${BASE_KEY}.${vid}` : BASE_KEY;
   } catch { return BASE_KEY; }
+}
+
+// "Platform" routes (checkout, product, shop, about, contact, search, order,
+// invoice, review) don't carry /@username in their own URL — they rely on the
+// vendor scope already being hydrated from an earlier page in the same visit.
+// A fresh load or refresh of one of those (very common: a payment gateway's
+// hosted checkout redirecting back to /checkout) had no way to know which
+// vendor it belonged to, so it silently fell back to the bundled default
+// template's nav/footer/payment provider/etc. Persist the vendor slug here —
+// sessionStorage, not localStorage, so it never bleeds across browser
+// sessions/devices — so any route can re-hydrate on a fresh mount.
+const ACTIVE_VENDOR_SLUG_KEY = "kiosk_active_vendor_slug";
+function getPersistedVendorSlug(): string | null {
+  try { return typeof window !== "undefined" ? sessionStorage.getItem(ACTIVE_VENDOR_SLUG_KEY) : null; } catch { return null; }
+}
+export function setPersistedVendorSlug(slug: string) {
+  try { if (typeof window !== "undefined") sessionStorage.setItem(ACTIVE_VENDOR_SLUG_KEY, slug); } catch { /* best-effort */ }
+}
+/** True for the platform's own domains (path-based /@username stores live here) — false for a vendor's custom domain. */
+export function isPlatformHost(host: string): boolean {
+  return (
+    host === "localhost" || host === "127.0.0.1" || host === "keeosk.store" ||
+    host.endsWith(".localhost") || host.endsWith(".keeosk.store") ||
+    host.endsWith(".pages.dev") || host.endsWith(".workers.dev")
+  );
 }
 
 type Persisted = {
@@ -1762,6 +1791,48 @@ export function StorefrontProvider({ children }: { children: ReactNode }) {
   // whole template (pages, fonts, navbar, footer, theme, payments) drives the UI.
   // Deliberately separate from `state` so it is never persisted to localStorage.
   const [vendorTpl, setVendorTpl] = useState<Template | null>(null);
+  // True only once a real vendor template has been confirmed absent (not a
+  // vendor context) or successfully hydrated — lets pages that render
+  // something the vendor's own choices affect (payment provider, above all)
+  // wait a beat instead of briefly showing the platform default.
+  const [vendorHydrating, setVendorHydrating] = useState(true);
+
+  // Root-level fallback hydration: $.tsx (/@username/*) and index.tsx (custom
+  // domain root) already hydrate for their own routes. This covers every
+  // other route on a fresh mount, using whichever vendor scope is already
+  // known — the current hostname for a custom domain, or the last-visited
+  // vendor slug (sessionStorage) for the path-based platform domains.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const path = window.location.pathname;
+    if (/^\/@[a-z0-9_]+/i.test(path)) { setVendorHydrating(false); return; } // $.tsx owns this
+    // The admin/template-builder routes are the local editor itself — they must
+    // keep reading/writing `active` (the in-progress draft), never a fetched
+    // read-only vendor snapshot, even if this browser tab previously visited a
+    // live shop and left a vendor slug behind in sessionStorage.
+    if (/^\/(admin|templates)(\/|$)/i.test(path)) { setVendorHydrating(false); return; }
+    const host = window.location.hostname;
+    const base = (import.meta as any).env?.["VITE_API_BASE"] ?? "/api";
+    const url = !isPlatformHost(host)
+      ? `${base}/store/by-domain?domain=${encodeURIComponent(host)}` // index.tsx also owns "/" itself, but re-hydrating there is harmless
+      : (() => {
+          const slug = getPersistedVendorSlug();
+          return slug ? `${base}/store/${encodeURIComponent(slug)}` : null;
+        })();
+    if (!url) { setVendorHydrating(false); return; }
+    let cancelled = false;
+    fetch(url)
+      .then((r) => r.json())
+      .then((json: { success?: boolean; paused?: boolean; templateJson?: string; deliveryFees?: DeliveryFees }) => {
+        if (cancelled || !json.success || json.paused || !json.templateJson) return;
+        setVendorTpl(JSON.parse(json.templateJson) as Template);
+        if (json.deliveryFees) setDeliveryFeesState((f) => ({ ...f, ...json.deliveryFees }));
+      })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setVendorHydrating(false); });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Undo / redo history (stored in refs to avoid spurious re-renders)
   const historyRef = useRef<Persisted[]>([]);
@@ -1942,7 +2013,8 @@ export function StorefrontProvider({ children }: { children: ReactNode }) {
     deliveryFees: activeDeliveryFees,
     setDeliveryFees: (fees: Partial<DeliveryFees>) => setDeliveryFeesState((prev) => ({ ...prev, ...fees })),
 
-    hydrateVendorTemplate: (tpl) => setVendorTpl(tpl),
+    hydrateVendorTemplate: (tpl) => { setVendorTpl(tpl); setVendorHydrating(false); },
+    vendorHydrating,
 
     designTokens: effectiveTokens,
     updateDesignTokens: (patch: Partial<DesignTokens>) => mutateActive((t: Template) => ({
@@ -2038,7 +2110,7 @@ export function StorefrontProvider({ children }: { children: ReactNode }) {
         return true;
       } catch { return false; }
     },
-  }), [state, activePageId, active, activePage, canUndo, canRedo, vendorTpl, effectiveTheme, effectiveTokens]);
+  }), [state, activePageId, active, activePage, canUndo, canRedo, vendorTpl, vendorHydrating, effectiveTheme, effectiveTokens, deliveryFeesState]);
 
   return (
     <StoreCtx.Provider value={value}>

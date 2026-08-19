@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useLocation } from "@tanstack/react-router";
 import { SectionRenderer } from "@/components/sections";
-import { scopeTemplateToVendor, useStorefront } from "@/lib/storefront";
+import { scopeTemplateToVendor, setPersistedVendorSlug, useStorefront } from "@/lib/storefront";
 import { setActiveVendorId } from "@/lib/vendorProducts";
 import { applyVendorSEO, setFavicon } from "@/lib/seo";
 import { StorePausedPage } from "@/components/store-paused";
@@ -73,6 +73,7 @@ function VendorStoreView({ username, subpath }: { username: string; subpath: str
         const url = json.launchUrl ?? `https://kiosk.store/@${username}`;
 
         actionsRef.current.hydrateVendorTemplate(tpl);
+        setPersistedVendorSlug(slug);
         if (json.deliveryFees) actionsRef.current.setDeliveryFees(json.deliveryFees);
 
         // Resolve the page for the current subpath, falling back to home.

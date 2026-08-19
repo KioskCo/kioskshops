@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { useStorefront, type Template } from "@/lib/storefront";
+import { useStorefront, isPlatformHost, type Template } from "@/lib/storefront";
 import { SectionRenderer } from "@/components/sections";
 import { applyStoreSEO, applyVendorSEO, setFavicon } from "@/lib/seo";
 import { setActiveVendorId } from "@/lib/vendorProducts";
@@ -20,16 +20,7 @@ export const Route = createFileRoute("/")({
 function getCustomDomain(): string | null {
   if (typeof window === "undefined") return null;
   const host = window.location.hostname;
-  if (
-    host === "localhost" ||
-    host === "127.0.0.1" ||
-    host === "keeosk.store" ||
-    host.endsWith(".localhost") ||
-    host.endsWith(".keeosk.store") ||
-    host.endsWith(".pages.dev") ||
-    host.endsWith(".workers.dev")
-  ) return null;
-  return host;
+  return isPlatformHost(host) ? null : host;
 }
 
 type StoreResponse = {

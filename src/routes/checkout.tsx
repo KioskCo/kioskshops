@@ -26,7 +26,7 @@ function loadScript(src: string): Promise<void> {
 
 function Checkout() {
   const { detailed, items, subtotal, clear } = useCart();
-  const { paymentConfig, navbar, referrals, deliveryFees } = useStorefront();
+  const { paymentConfig, navbar, referrals, deliveryFees, vendorHydrating } = useStorefront();
 
   useEffect(() => {
     document.title = `Checkout — ${navbar.brand}`;
@@ -89,6 +89,14 @@ function Checkout() {
 
   const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    // Guard against the narrow race on a fresh page load (e.g. returning from
+    // a payment gateway) where this store's real payment provider is still
+    // being fetched — never let a submit go through against the platform
+    // default in that window.
+    if (vendorHydrating) {
+      setError("Still loading this store's checkout — please try again in a moment.");
+      return;
+    }
     setError(null);
     setSubmitting(true);
     const fd = new FormData(e.currentTarget);
