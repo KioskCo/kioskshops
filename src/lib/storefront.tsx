@@ -454,6 +454,8 @@ export type RowBlock = {
   gap?: "none" | "sm" | "md" | "lg";
   verticalAlign?: "top" | "center" | "bottom";
   stackOnMobile?: boolean;
+  animation?: BlockAnimation;
+  styles?: BlockStyles;
 };
 
 export type VideoBlock = {

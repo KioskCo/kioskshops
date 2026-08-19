@@ -2997,6 +2997,8 @@ export function BlockRenderer({ block, ctx }: { block: Block; ctx: { tokens: Ret
         gridTemplateColumns: `repeat(${block.colCount}, 1fr)`,
         gap,
         alignItems: vAlign,
+        ...block.styles,
+        ...blockAnimStyle(block.animation),
       }}
         className={block.stackOnMobile !== false ? "custom-row-stack" : ""}
       >
@@ -3382,9 +3384,9 @@ function CustomCountdownBlock({ block }: { block: CountdownBlock }) {
 
   if (!timeLeft) {
     return (
-      <p style={{ fontWeight: 600, ...block.styles, ...blockAnimStyle(block.animation) }}>
-        {block.expiredText ?? "Offer ended"}
-      </p>
+      <div style={{ ...block.styles, ...blockAnimStyle(block.animation) }}>
+        <p style={{ fontWeight: 600, margin: 0 }}>{block.expiredText ?? "Offer ended"}</p>
+      </div>
     );
   }
 
@@ -3403,9 +3405,9 @@ function CustomCountdownBlock({ block }: { block: CountdownBlock }) {
       ];
 
   return (
-    <div style={{ ...blockAnimStyle(block.animation) }}>
+    <div style={{ ...block.styles, ...blockAnimStyle(block.animation) }}>
       {block.label && (
-        <p style={{ marginBottom: 10, fontSize: "0.85rem", fontWeight: 500, color: "hsl(var(--muted-foreground))", ...block.styles }}>
+        <p style={{ marginBottom: 10, fontSize: "0.85rem", fontWeight: 500, color: "hsl(var(--muted-foreground))" }}>
           {block.label}
         </p>
       )}
@@ -4598,7 +4600,7 @@ export function SectionRenderer({ section, vendorId }: { section: Section; vendo
     section.shadow === "lg" ? "shadow-lg" :
     section.shadow === "xl" ? "shadow-xl" : "";
 
-  const selfPadded = ["announcement", "hero", "newsletter", "cta-banner", "spacer", "product-detail", "checkout-form", "contact-form", "shop-grid", "about", "contact"];
+  const selfPadded = ["announcement", "hero", "newsletter", "cta-banner", "spacer", "product-detail", "checkout-form", "contact-form", "shop-grid", "about", "contact", "custom"];
   const pad = section.padding ?? "md";
   const bg = (section.bgColor || section.bgImage)
     ? ""
