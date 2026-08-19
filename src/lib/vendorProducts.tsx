@@ -1,21 +1,34 @@
 /**
  * Vendor products context.
  *
- * - `products`    → vendor's real products for grids/lists. Falls back to demo if none loaded yet.
- * - `findProduct` → looks up by id OR slug; tries vendor products first, then demo fallback.
- *                   This means template sections that still reference demo slugs keep showing
- *                   demo products until the vendor explicitly picks their own via the toggle.
+ * - `products`    → the active vendor's real products for grids/lists.
+ * - `findProduct` → looks up by id OR slug among the active vendor's products.
+ *
+ * The bundled demo catalogue is used ONLY when there is no active vendor at
+ * all (id === "") — i.e. the local admin/editor preview, which needs
+ * something to show before any real store exists. A real deployed vendor
+ * shop must never substitute demo products: zero real products means the
+ * section renders its own empty state ("No products yet"), and a template
+ * section that still references an old demo product slug (left over from
+ * starting off the Atelier starter template) must show nothing rather than
+ * silently displaying someone else's example product under the vendor's name.
  */
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { products as staticProducts, type Product } from "./products";
 
 const VENDOR_ID_CHANGED_EVENT = "kiosk_vendor_id_changed";
+const VENDOR_ID_KEY = "kiosk_vendor_id";
 
 export function setActiveVendorId(vendorId: string) {
   if (typeof window === "undefined") return;
-  sessionStorage.setItem("kiosk_vendor_id", vendorId);
+  sessionStorage.setItem(VENDOR_ID_KEY, vendorId);
   window.dispatchEvent(new CustomEvent(VENDOR_ID_CHANGED_EVENT, { detail: vendorId }));
+}
+
+/** Reads the currently-active vendor id (empty string when there isn't one — e.g. the admin/editor preview). */
+export function getActiveVendorId(): string {
+  try { return typeof window !== "undefined" ? (sessionStorage.getItem(VENDOR_ID_KEY) ?? "") : ""; } catch { return ""; }
 }
 
 export type VendorProduct = {
@@ -62,9 +75,9 @@ type Ctx = {
 const demoProducts: VendorProduct[] = staticProducts.map(toVendorProduct);
 
 const VendorProductsCtx = createContext<Ctx>({
-  products: demoProducts,
-  findProduct: (s) => demoProducts.find((p) => p.id === s || p.slug === s),
-  getProduct:  (s) => demoProducts.find((p) => p.id === s || p.slug === s),
+  products: [],
+  findProduct: () => undefined,
+  getProduct: () => undefined,
   loading: false,
 });
 
@@ -150,13 +163,15 @@ export function VendorProductsProvider({ children }: { children: ReactNode }) {
     };
   }, [vendorId]);
 
-  // Grid/list: real vendor products, or demo if none loaded
-  const products = vendorProducts.length > 0 ? vendorProducts : demoProducts;
+  // No active vendor at all → this is the local admin/editor preview, which
+  // needs something to show. A real vendor (vendorId set) gets ONLY their own
+  // products, however many that is — including zero — never the demo catalogue.
+  const isPreview = !vendorId;
+  const products = isPreview ? demoProducts : vendorProducts;
 
-  // Section lookup: check vendor products first (by UUID), then demo (by slug)
   const findProduct = (idOrSlug: string): VendorProduct | undefined =>
     vendorProducts.find((p) => p.id === idOrSlug || p.slug === idOrSlug) ??
-    demoProducts.find((p) => p.id === idOrSlug || p.slug === idOrSlug);
+    (isPreview ? demoProducts.find((p) => p.id === idOrSlug || p.slug === idOrSlug) : undefined);
 
   return (
     <VendorProductsCtx.Provider value={{ products, findProduct, getProduct: findProduct, loading }}>

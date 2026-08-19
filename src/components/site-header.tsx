@@ -1,6 +1,6 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
-  List, Moon, Search, Bag, SunFill, XLg, PersonCircle, ChevronRight, ArrowRight,
+  List, Search, Bag, XLg, PersonCircle, ChevronRight, ArrowRight,
   Person, PersonVcard, People, BagCheck, BagPlus, Cart, Cart3, Gift, Shop,
   Grid, Grid3x3Gap, Justify, ThreeDots, ThreeDotsVertical, UpcScan, Upc,
 } from "react-bootstrap-icons";
@@ -143,7 +143,7 @@ function ListMarker({ style, index }: { style?: string; index: number }) {
 
 export function SiteHeader() {
   const { count, setOpen } = useCart();
-  const { theme, setTheme, navbar } = useStorefront();
+  const { navbar } = useStorefront();
   const designTokens = useDesignTokens();
   // Brand wordmark follows its own "Brand font" override when set, otherwise
   // falls back to the store-wide heading font — never plain browser default.
@@ -236,7 +236,7 @@ export function SiteHeader() {
 
   const hamburgerBtn = (
     <button onClick={openMobile} className="inline-flex h-10 w-10 items-center justify-center rounded-full hover:bg-white/10 md:hidden" aria-label="Menu">
-      <MenuIcon className="h-4 w-4" />
+      <MenuIcon size={20} />
     </button>
   );
 
@@ -291,22 +291,17 @@ export function SiteHeader() {
           })}
           {navbar.showSearch && (
             <button onClick={openSearch} className="inline-flex h-10 w-10 items-center justify-center rounded-full hover:bg-secondary" aria-label="Search">
-              <SearchIcon size={16} />
-            </button>
-          )}
-          {navbar.showThemeToggle && (
-            <button onClick={() => setTheme(theme === "dark" ? "light" : "dark")} className="inline-flex h-10 w-10 items-center justify-center rounded-full hover:bg-secondary" aria-label="Toggle theme">
-              {theme === "dark" ? <SunFill style={{ fontSize: 16 }} /> : <Moon style={{ fontSize: 16 }} />}
+              <SearchIcon size={19} />
             </button>
           )}
           {navbar.showProfileIcon && (
             <a href={navbar.profileLink ?? "/login"} className="inline-flex h-10 w-10 items-center justify-center rounded-full hover:bg-secondary" aria-label="Account">
-              <ProfileIcon style={{ fontSize: 18 }} />
+              <ProfileIcon size={21} />
             </a>
           )}
           {navbar.showCart && (
             <button onClick={() => setOpen(true)} className="relative inline-flex h-10 w-10 items-center justify-center rounded-full hover:bg-secondary" aria-label="Open cart">
-              <CartIcon style={{ fontSize: 17 }} />
+              <CartIcon size={20} />
               {count > 0 && (
                 <span className="absolute -right-0.5 -top-0.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-accent px-1.5 text-[10px] font-medium text-accent-foreground">{count}</span>
               )}
@@ -430,7 +425,7 @@ export function SiteHeader() {
               })}
               {navbar.showProfileIcon && (
                 <a href={navbar.profileLink ?? "/login"} onClick={closeMobile} className="flex items-center gap-2 rounded-md px-3 py-2.5 text-sm hover:bg-secondary">
-                  <ProfileIcon style={{ fontSize: 16 }} />
+                  <ProfileIcon size={18} />
                   <span>My Account</span>
                 </a>
               )}

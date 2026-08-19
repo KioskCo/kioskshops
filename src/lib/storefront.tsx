@@ -1,6 +1,7 @@
 ﻿import { createContext, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import hero from "@/assets/hero.jpg";
 import { products } from "./products";
+import { setActiveVendorId } from "./vendorProducts";
 
 export type LinkTarget = string;
 export type Padding = "none" | "sm" | "md" | "lg";
@@ -1823,10 +1824,13 @@ export function StorefrontProvider({ children }: { children: ReactNode }) {
     let cancelled = false;
     fetch(url)
       .then((r) => r.json())
-      .then((json: { success?: boolean; paused?: boolean; templateJson?: string; deliveryFees?: DeliveryFees }) => {
+      .then((json: { success?: boolean; paused?: boolean; templateJson?: string; deliveryFees?: DeliveryFees; vendorId?: string }) => {
         if (cancelled || !json.success || json.paused || !json.templateJson) return;
         setVendorTpl(JSON.parse(json.templateJson) as Template);
         if (json.deliveryFees) setDeliveryFeesState((f) => ({ ...f, ...json.deliveryFees }));
+        // Also recover product/cart scope (vendorProducts.tsx, cart.tsx) on the
+        // same fresh mount, not just template-derived nav/footer/payment.
+        if (json.vendorId) setActiveVendorId(json.vendorId);
       })
       .catch(() => {})
       .finally(() => { if (!cancelled) setVendorHydrating(false); });

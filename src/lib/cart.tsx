@@ -1,5 +1,5 @@
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import { useVendorProducts, effectivePrice, type VendorProduct } from "./vendorProducts";
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useVendorProducts, getActiveVendorId, effectivePrice, type VendorProduct } from "./vendorProducts";
 
 type CartItem = { slug: string; qty: number };
 type CartCtx = {
@@ -16,24 +16,52 @@ type CartCtx = {
 };
 
 const Ctx = createContext<CartCtx | null>(null);
-const KEY = "cart.v1";
+const KEY_BASE = "cart.v1";
+/** A per-vendor cart key — without this a customer's cart bled across every
+ * vendor's shop (and showed leftover items with nothing but demo products
+ * behind them when there was no vendor at all). No vendor → no storage key,
+ * so the cart is simply empty and never persisted. */
+function cartKey(vendorId: string): string | null {
+  return vendorId ? `${KEY_BASE}.${vendorId}` : null;
+}
 
 export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
   const [open, setOpen] = useState(false);
   const [hydrated, setHydrated] = useState(false);
   const { products } = useVendorProducts();
+  const vendorIdRef = useRef(getActiveVendorId());
 
+  // Load (or clear) the cart whenever the active vendor changes, including on
+  // first mount and when vendorProducts.tsx dispatches its change event.
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(KEY);
-      if (raw) setItems(JSON.parse(raw));
-    } catch {}
-    setHydrated(true);
+    const loadFor = (vendorId: string) => {
+      vendorIdRef.current = vendorId;
+      const key = cartKey(vendorId);
+      if (!key) { setItems([]); setHydrated(true); return; }
+      try {
+        const raw = localStorage.getItem(key);
+        setItems(raw ? JSON.parse(raw) : []);
+      } catch {
+        setItems([]);
+      }
+      setHydrated(true);
+    };
+
+    loadFor(getActiveVendorId());
+    const onVendorChanged = (e: Event) => {
+      const next = e instanceof CustomEvent && typeof e.detail === "string" ? e.detail : getActiveVendorId();
+      setHydrated(false);
+      loadFor(next);
+    };
+    window.addEventListener("kiosk_vendor_id_changed", onVendorChanged as EventListener);
+    return () => window.removeEventListener("kiosk_vendor_id_changed", onVendorChanged as EventListener);
   }, []);
 
   useEffect(() => {
-    if (hydrated) localStorage.setItem(KEY, JSON.stringify(items));
+    if (!hydrated) return;
+    const key = cartKey(vendorIdRef.current);
+    if (key) localStorage.setItem(key, JSON.stringify(items));
   }, [items, hydrated]);
 
   const value = useMemo<CartCtx>(() => {
