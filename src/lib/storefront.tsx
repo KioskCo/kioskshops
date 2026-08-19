@@ -1466,6 +1466,19 @@ export function createDefaultSection(type: SectionType): Section {
       { name: "Growth", price: "₦5,000", period: "/month", features: ["Unlimited products", "Advanced analytics", "Priority support", "Custom domain"], ctaLabel: "Subscribe", ctaLink: "/shop", highlighted: true },
       { name: "Enterprise", price: "Custom", features: ["Everything in Growth", "Dedicated account manager", "API access", "SLA"], ctaLabel: "Contact us", ctaLink: "/contact" },
     ]};
+    case "countdown": return { id, type, heading: "Sale ends in", body: "Grab them before they're gone", targetDate: new Date(Date.now() + 7 * 86400000).toISOString(), ctaLabel: "Shop now", ctaLink: "/shop" };
+    case "stats": return { id, type, heading: "Our numbers", items: [
+      { value: "10K+", label: "Happy customers", description: "Across Nigeria" },
+      { value: "500+", label: "Products", description: "Curated just for you" },
+      { value: "4.9", label: "Average rating", description: "From verified buyers" },
+      { value: "24h", label: "Dispatch time", description: "On in-stock items" },
+    ] };
+    case "team": return { id, type, heading: "Meet the team", subheading: "The people behind the brand", members: [
+      { name: "Akin S.", role: "Founder", avatar: "" },
+      { name: "Tolu O.", role: "Head of Design", avatar: "" },
+      { name: "Ngozi A.", role: "Customer Care", avatar: "" },
+      { name: "Emeka U.", role: "Logistics", avatar: "" },
+    ] };
     case "custom": return { id, type, label: "Custom section", blocks: [], gap: "md", align: "start" };
   }
 }
