@@ -943,19 +943,34 @@ function FeaturedProducts({ s }: { s: FeaturedProductsSection }) {
   const cardVariant = s.cardVariant ?? "classic";
   const pcProps = { variant: cardVariant, cardStyle: st.productCardStyle, titleStyle: st.productTitleStyle, priceStyle: st.priceStyle, imageStyle: st.imageStyle, ...cartProps };
   const isHorizontal = cardVariant === "horizontal";
+  const card = (p: NonNullable<ReturnType<typeof findProduct>>) =>
+    useDefaultLink
+      ? <ProductCard key={p.slug} product={p as unknown as Product} {...pcProps} />
+      : <ProductCard key={p.slug} product={p as unknown as Product} linkOverride={resolveLink(p.slug)} {...pcProps} />;
+
+  // Desktop column count follows the editor's "Columns" setting; mobile always
+  // stacks 2-up regardless, same as before.
+  const colClass = { 2: "sm:grid-cols-2", 3: "sm:grid-cols-3", 4: "sm:grid-cols-4" }[s.columns] ?? "sm:grid-cols-4";
+
   return (
     <section className="mx-auto max-w-7xl px-6">
       <div className="mb-8 text-center">
         <h2 className={`${st.h2} ${st.hFont}`} style={st.headingStyle}>{s.heading}</h2>
         {s.subheading && <p className="mt-2 text-sm text-muted-foreground" style={st.subheadingStyle}>{s.subheading}</p>}
       </div>
-      <div className={isHorizontal ? "flex flex-col gap-4" : "grid grid-cols-2 gap-x-6 gap-y-10 sm:grid-cols-4"}>
-        {items.map((p) => (
-          useDefaultLink
-            ? <ProductCard key={p.slug} product={p as unknown as Product} {...pcProps} />
-            : <ProductCard key={p.slug} product={p as unknown as Product} linkOverride={resolveLink(p.slug)} {...pcProps} />
-        ))}
-      </div>
+      {s.variant === "carousel" ? (
+        <div className="-mx-6 flex snap-x snap-mandatory gap-4 overflow-x-auto px-6 pb-4">
+          {items.map((p) => (
+            <div key={p.slug} className="w-[65%] shrink-0 snap-start sm:w-[45%] lg:w-[calc((100%-3*1.5rem)/4)]">
+              {card(p)}
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className={isHorizontal ? "flex flex-col gap-4" : `grid grid-cols-2 gap-x-6 gap-y-10 ${colClass}`}>
+          {items.map(card)}
+        </div>
+      )}
     </section>
   );
 }

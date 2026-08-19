@@ -1,5 +1,34 @@
 import { Link, useNavigate } from "@tanstack/react-router";
-import { List, Moon, Search, Bag, SunFill, XLg, PersonCircle, ChevronRight, ArrowRight } from "react-bootstrap-icons";
+import {
+  List, Moon, Search, Bag, SunFill, XLg, PersonCircle, ChevronRight, ArrowRight,
+  Person, PersonVcard, People, BagCheck, BagPlus, Cart, Cart3, Gift, Shop,
+  Grid, Grid3x3Gap, Justify, ThreeDots, ThreeDotsVertical, UpcScan, Upc,
+} from "react-bootstrap-icons";
+import type { Icon as IconType } from "react-bootstrap-icons";
+
+// Each navbar icon setting is a fixed, enumerated set of Ionicon names picked
+// in the kioskm editor (see editor-panels.tsx's NavIconPicker) — the shop
+// previously rendered a single hardcoded icon regardless of this setting.
+const SEARCH_ICONS: Record<string, IconType> = {
+  "search-outline": Search, search: Search, "search-sharp": Search,
+  "search-circle-outline": Search, "scan-outline": UpcScan, "barcode-outline": Upc,
+};
+const PROFILE_ICONS: Record<string, IconType> = {
+  "person-circle-outline": PersonCircle, "person-circle": PersonCircle,
+  "person-outline": Person, person: Person,
+  "contact-outline": PersonVcard, "people-outline": People,
+};
+const CART_ICONS: Record<string, IconType> = {
+  "bag-outline": Bag, "bag-handle-outline": Bag, "bag-check-outline": BagCheck,
+  "bag-add-outline": BagPlus, "cart-outline": Cart3, cart: Cart,
+  "gift-outline": Gift, "storefront-outline": Shop,
+};
+const MENU_ICONS: Record<string, IconType> = {
+  "menu-outline": List, menu: List,
+  "reorder-three-outline": List, "reorder-four-outline": Justify,
+  "grid-outline": Grid3x3Gap, "apps-outline": Grid,
+  "ellipsis-horizontal-outline": ThreeDots, "ellipsis-vertical-outline": ThreeDotsVertical,
+};
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useCart } from "@/lib/cart";
@@ -148,6 +177,10 @@ export function SiteHeader() {
   const logoMode = navbar.logoMode ?? "text";
   const logoHeight = navbar.logoHeight ?? 28;
   const sidebarAnim = navbar.sidebarAnimation ?? "slide";
+  const SearchIcon = SEARCH_ICONS[navbar.searchIcon ?? "search-outline"] ?? Search;
+  const ProfileIcon = PROFILE_ICONS[navbar.profileIcon ?? "person-circle-outline"] ?? PersonCircle;
+  const CartIcon = CART_ICONS[navbar.cartIcon ?? "bag-outline"] ?? Bag;
+  const MenuIcon = MENU_ICONS[navbar.menuIcon ?? "menu-outline"] ?? List;
 
   const openMobile = () => {
     if (closeTimer.current) clearTimeout(closeTimer.current);
@@ -203,7 +236,7 @@ export function SiteHeader() {
 
   const hamburgerBtn = (
     <button onClick={openMobile} className="inline-flex h-10 w-10 items-center justify-center rounded-full hover:bg-white/10 md:hidden" aria-label="Menu">
-      <List className="h-4 w-4" />
+      <MenuIcon className="h-4 w-4" />
     </button>
   );
 
@@ -258,7 +291,7 @@ export function SiteHeader() {
           })}
           {navbar.showSearch && (
             <button onClick={openSearch} className="inline-flex h-10 w-10 items-center justify-center rounded-full hover:bg-secondary" aria-label="Search">
-              <Search size={16} />
+              <SearchIcon size={16} />
             </button>
           )}
           {navbar.showThemeToggle && (
@@ -268,12 +301,12 @@ export function SiteHeader() {
           )}
           {navbar.showProfileIcon && (
             <a href={navbar.profileLink ?? "/login"} className="inline-flex h-10 w-10 items-center justify-center rounded-full hover:bg-secondary" aria-label="Account">
-              <PersonCircle style={{ fontSize: 18 }} />
+              <ProfileIcon style={{ fontSize: 18 }} />
             </a>
           )}
           {navbar.showCart && (
             <button onClick={() => setOpen(true)} className="relative inline-flex h-10 w-10 items-center justify-center rounded-full hover:bg-secondary" aria-label="Open cart">
-              <Bag style={{ fontSize: 17 }} />
+              <CartIcon style={{ fontSize: 17 }} />
               {count > 0 && (
                 <span className="absolute -right-0.5 -top-0.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-accent px-1.5 text-[10px] font-medium text-accent-foreground">{count}</span>
               )}
@@ -397,7 +430,7 @@ export function SiteHeader() {
               })}
               {navbar.showProfileIcon && (
                 <a href={navbar.profileLink ?? "/login"} onClick={closeMobile} className="flex items-center gap-2 rounded-md px-3 py-2.5 text-sm hover:bg-secondary">
-                  <PersonCircle style={{ fontSize: 16 }} />
+                  <ProfileIcon style={{ fontSize: 16 }} />
                   <span>My Account</span>
                 </a>
               )}
