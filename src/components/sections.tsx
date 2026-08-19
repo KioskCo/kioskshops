@@ -1028,6 +1028,31 @@ function ImageText({ s }: { s: ImageTextSection }) {
     );
   }
 
+  if (s.variant === "offset") {
+    return (
+      <section className="mx-auto max-w-7xl px-6 py-4">
+        <div className={`grid grid-cols-1 items-start gap-10 md:grid-cols-2 md:gap-16 ${s.imageSide === "left" ? "" : "md:[&>*:first-child]:order-2"}`}>
+          <div className="relative">
+            <div className={`absolute -inset-4 -z-10 hidden bg-secondary md:block ${st.cardRadius}`} />
+            <img src={s.image} alt={s.heading} className={`aspect-[4/5] w-full object-cover md:mt-10 ${st.cardRadius}`} style={st.imageStyle} />
+          </div>
+          <div>
+            <h2 className={`${st.h2} ${st.hFont}`} style={st.headingStyle}>{s.heading}</h2>
+            <p className="mt-4 text-muted-foreground" style={st.bodyStyle}>{s.body}</p>
+            {s.ctaLabel && s.ctaLink && (
+              <Link to={s.ctaLink} className="mt-6 inline-flex items-center gap-2 text-sm font-medium underline-offset-4 hover:underline">
+                {st.btnIcon?.pos === "left" && <SectionIcon def={st.btnIcon} />}
+                {s.ctaLabel}
+                {st.btnIcon ? (st.btnIcon.pos === "right" ? <SectionIcon def={st.btnIcon} /> : null) : <ArrowRight size={16} />}
+              </Link>
+            )}
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  // side-by-side (default)
   return (
     <section className="mx-auto max-w-7xl px-6">
       <div className={`grid grid-cols-1 items-center gap-10 md:grid-cols-2 md:gap-16 ${s.imageSide === "left" ? "" : "md:[&>*:first-child]:order-2"}`}>
@@ -1194,22 +1219,37 @@ function CollectionList({ s }: { s: CollectionListSection }) {
   const st = useSectionStyles();
   const cardRadiusStyle = s.borderRadius !== undefined ? { borderRadius: s.borderRadius } : undefined;
   const cardRadiusCls = cardRadiusStyle ? "" : st.cardRadius;
+  const isScroller = (s as any).variant === "scroller";
+
+  const item = (it: (typeof s.items)[number], i: number, className: string) => {
+    const [linkPath, linkQs] = it.link.split("?");
+    const linkSearch = linkQs ? Object.fromEntries(new URLSearchParams(linkQs)) : undefined;
+    return (
+      <Link key={i} to={linkPath as any} search={linkSearch as any} className={`group block ${className}`}>
+        <div className={`aspect-square overflow-hidden bg-secondary ${cardRadiusCls}`} style={{ ...st.cardStyle, ...cardRadiusStyle }}>
+          <img src={it.image} alt={it.label} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
+        </div>
+        <p className="mt-3 text-center text-sm font-medium" style={st.productTitleStyle}>{it.label}</p>
+      </Link>
+    );
+  };
+
+  if (isScroller) {
+    return (
+      <section className="mx-auto max-w-7xl">
+        <h2 className={`mb-8 px-6 text-center ${st.h2} ${st.hFont}`} style={st.headingStyle}>{s.heading}</h2>
+        <div className="flex snap-x snap-mandatory gap-4 overflow-x-auto px-6 pb-2">
+          {s.items.map((it, i) => item(it, i, "w-36 shrink-0 snap-start sm:w-44"))}
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section className="mx-auto max-w-7xl px-6">
       <h2 className={`mb-8 text-center ${st.h2} ${st.hFont}`} style={st.headingStyle}>{s.heading}</h2>
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-        {s.items.map((it, i) => {
-          const [linkPath, linkQs] = it.link.split("?");
-          const linkSearch = linkQs ? Object.fromEntries(new URLSearchParams(linkQs)) : undefined;
-          return (
-            <Link key={i} to={linkPath as any} search={linkSearch as any} className="group block">
-              <div className={`aspect-square overflow-hidden bg-secondary ${cardRadiusCls}`} style={{ ...st.cardStyle, ...cardRadiusStyle }}>
-                <img src={it.image} alt={it.label} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
-              </div>
-              <p className="mt-3 text-center text-sm font-medium" style={st.productTitleStyle}>{it.label}</p>
-            </Link>
-          );
-        })}
+        {s.items.map((it, i) => item(it, i, ""))}
       </div>
     </section>
   );
@@ -1330,6 +1370,49 @@ function CtaBanner({ s }: { s: CtaBannerSection }) {
 
 function TextColumns({ s }: { s: TextColumnsSection }) {
   const st = useSectionStyles();
+  const variant = (s as any).variant ?? "cards";
+
+  if (variant === "icons") {
+    return (
+      <section className="mx-auto max-w-7xl px-6">
+        {s.heading && <h2 className={`mb-12 text-center ${st.h2} ${st.hFont}`} style={st.headingStyle}>{s.heading}</h2>}
+        <div className="grid grid-cols-1 gap-10 text-center md:grid-cols-3">
+          {s.columns.map((c, i) => (
+            <div key={i}>
+              {c.icon && (
+                <div className={`mx-auto mb-5 flex h-16 w-16 items-center justify-center bg-secondary ${st.cardRadius}`}>
+                  <img src={c.icon} alt="" className="h-8 w-8 object-contain" />
+                </div>
+              )}
+              <h3 className={`text-lg ${st.hFont}`} style={st.headingStyle}>{c.title}</h3>
+              <p className="mt-2 text-sm text-muted-foreground" style={st.bodyStyle}>{c.body}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+    );
+  }
+
+  if (variant === "minimal") {
+    return (
+      <section className="mx-auto max-w-5xl px-6">
+        {s.heading && <h2 className={`mb-10 text-center ${st.h2} ${st.hFont}`} style={st.headingStyle}>{s.heading}</h2>}
+        <div className="grid grid-cols-1 gap-x-10 gap-y-8 md:grid-cols-3">
+          {s.columns.map((c, i) => (
+            <div key={i} className="flex gap-4">
+              {c.icon && <img src={c.icon} alt="" className="h-6 w-6 shrink-0 object-contain" />}
+              <div>
+                <h3 className={`font-semibold ${st.hFont}`} style={st.headingStyle}>{c.title}</h3>
+                <p className="mt-1 text-sm text-muted-foreground" style={st.bodyStyle}>{c.body}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+    );
+  }
+
+  // cards (default)
   return (
     <section className="mx-auto max-w-7xl px-6">
       {s.heading && <h2 className={`mb-10 text-center ${st.h2} ${st.hFont}`} style={st.headingStyle}>{s.heading}</h2>}
@@ -1387,13 +1470,14 @@ function Testimonials({ s, vendorId }: { s: TestimonialsSection; vendorId?: stri
     );
   }
 
+  const isGrid = s.variant === "grid";
   return (
     <section className="mx-auto max-w-7xl px-6">
       {s.heading && <h2 className={`mb-10 text-center ${st.h2} ${st.hFont}`} style={st.headingStyle}>{s.heading}</h2>}
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+      <div className={isGrid ? "grid grid-cols-2 gap-4 sm:grid-cols-3" : "grid grid-cols-1 gap-6 md:grid-cols-2"}>
         {items.map((t, i) => (
-          <figure key={i} className={`border border-border bg-card p-6 ${st.cardRadius}`} style={st.cardStyle}>
-            <blockquote className="text-base leading-relaxed">"{t.quote}"</blockquote>
+          <figure key={i} className={`border border-border bg-card ${isGrid ? "p-4" : "p-6"} ${st.cardRadius}`} style={st.cardStyle}>
+            <blockquote className={isGrid ? "text-sm leading-relaxed" : "text-base leading-relaxed"}>"{t.quote}"</blockquote>
             <figcaption className="mt-4 flex items-center gap-3">
               {"avatar" in t && (t as any).avatar && <img src={(t as any).avatar} alt="" className="h-9 w-9 rounded-full object-cover" />}
               <div>
@@ -3808,36 +3892,65 @@ function ReviewsBlock({ s, vendorId }: { s: ReviewsSection; vendorId?: string })
   }, [s.useRealReviews, vendorId, s.maxItems]);
 
   const items = (s.useRealReviews && liveItems && liveItems.length > 0 ? liveItems : (s.testimonials ?? [])).slice(0, s.maxItems ?? 6);
+  const variant = s.variant ?? "grid";
 
-  const cols = s.variant === "list" ? "grid-cols-1" : "sm:grid-cols-2 lg:grid-cols-3";
-  return (
-    <div className="mx-auto max-w-6xl px-4 py-12">
+  const heading = (
+    <>
       {s.heading && <h2 className={`mb-2 text-center text-2xl font-bold ${st.hFont}`} style={st.headingStyle}>{s.heading}</h2>}
       {s.subheading && <p className="mb-8 text-center text-muted-foreground" style={st.bodyStyle}>{s.subheading}</p>}
       {items.length === 0 && (
         <p className="text-center text-sm text-muted-foreground opacity-60">No reviews yet — add them in the editor.</p>
       )}
-      <div className={`grid gap-4 ${cols}`}>
-        {items.map((r, i) => (
-          <div key={i} className={`rounded-2xl border border-border bg-card p-5 flex flex-col gap-3 ${st.cardRadius}`} style={st.cardStyle}>
-            <div className="flex gap-0.5">
-              {Array.from({ length: 5 }, (_, star) => (
-                <span key={star} className={star < r.rating ? "text-amber-400" : "text-muted-foreground/30"}>★</span>
-              ))}
-            </div>
-            <p className="text-sm leading-relaxed" style={st.bodyStyle}>"{r.text}"</p>
-            <div className="mt-auto flex items-center gap-2.5">
-              <div className="h-8 w-8 rounded-full bg-accent/20 flex items-center justify-center text-xs font-bold text-accent overflow-hidden shrink-0">
-                {r.avatar ? <img src={r.avatar} className="h-full w-full object-cover" alt="" /> : r.name[0]}
-              </div>
-              <div>
-                <p className="text-xs font-semibold" style={st.headingStyle}>{r.name}</p>
-                {r.productName && <p className="text-[11px] text-muted-foreground">{r.productName}</p>}
-              </div>
-            </div>
-          </div>
+    </>
+  );
+
+  const card = (r: (typeof items)[number], i: number, className = "") => (
+    <div key={i} className={`rounded-2xl border border-border bg-card p-5 flex flex-col gap-3 ${st.cardRadius} ${className}`} style={st.cardStyle}>
+      <div className="flex gap-0.5">
+        {Array.from({ length: 5 }, (_, star) => (
+          <span key={star} className={star < r.rating ? "text-amber-400" : "text-muted-foreground/30"}>★</span>
         ))}
       </div>
+      <p className="text-sm leading-relaxed" style={st.bodyStyle}>"{r.text}"</p>
+      <div className="mt-auto flex items-center gap-2.5">
+        <div className="h-8 w-8 rounded-full bg-accent/20 flex items-center justify-center text-xs font-bold text-accent overflow-hidden shrink-0">
+          {r.avatar ? <img src={r.avatar} className="h-full w-full object-cover" alt="" /> : r.name[0]}
+        </div>
+        <div>
+          <p className="text-xs font-semibold" style={st.headingStyle}>{r.name}</p>
+          {r.productName && <p className="text-[11px] text-muted-foreground">{r.productName}</p>}
+        </div>
+      </div>
+    </div>
+  );
+
+  if (variant === "carousel") {
+    return (
+      <div className="mx-auto max-w-6xl px-4 py-12">
+        {heading}
+        <div className="flex snap-x snap-mandatory gap-4 overflow-x-auto pb-2">
+          {items.map((r, i) => card(r, i, "w-72 shrink-0 snap-start"))}
+        </div>
+      </div>
+    );
+  }
+
+  if (variant === "masonry") {
+    return (
+      <div className="mx-auto max-w-6xl px-4 py-12">
+        {heading}
+        <div className="columns-1 gap-4 sm:columns-2 lg:columns-3">
+          {items.map((r, i) => <div key={i} className="mb-4 break-inside-avoid">{card(r, i)}</div>)}
+        </div>
+      </div>
+    );
+  }
+
+  const cols = variant === "list" ? "grid-cols-1" : "sm:grid-cols-2 lg:grid-cols-3";
+  return (
+    <div className="mx-auto max-w-6xl px-4 py-12">
+      {heading}
+      <div className={`grid gap-4 ${cols}`}>{items.map((r, i) => card(r, i))}</div>
     </div>
   );
 }
@@ -3845,26 +3958,77 @@ function ReviewsBlock({ s, vendorId }: { s: ReviewsSection; vendorId?: string })
 // ─── Lookbook ─────────────────────────────────────────────────────────────────
 function LookbookBlock({ s }: { s: LookbookSection }) {
   const st = useSectionStyles();
-  const cols = s.variant === "masonry" ? "columns-2 sm:columns-3 gap-3" : "grid grid-cols-2 sm:grid-cols-3 gap-4";
-  return (
-    <div className="mx-auto max-w-6xl px-4 py-12">
+  const variant = s.variant ?? "grid";
+  const items = s.items ?? [];
+
+  const heading = (
+    <>
       {s.heading && <h2 className={`mb-2 text-center text-2xl font-bold ${st.hFont}`} style={st.headingStyle}>{s.heading}</h2>}
       {s.subheading && <p className="mb-8 text-center text-muted-foreground" style={st.bodyStyle}>{s.subheading}</p>}
-      <div className={s.variant === "masonry" ? cols : `grid ${cols.slice(5)}`}>
-        {(s.items ?? []).map((item, i) => (
-          <div key={i} className={`relative overflow-hidden group cursor-pointer ${s.variant === "masonry" ? "mb-3 break-inside-avoid rounded-2xl" : "aspect-[3/4] rounded-2xl"} bg-muted`} style={st.cardStyle}>
-            {item.image && <img src={item.image} alt={item.title ?? ""} className={`${s.variant === "masonry" ? "w-full" : "absolute inset-0 h-full w-full object-cover"} transition-transform duration-500 group-hover:scale-105`} style={st.imageStyle} />}
-            <div className={s.variant === "masonry" ? "p-3" : "absolute inset-0 flex flex-col justify-end bg-gradient-to-t from-black/60 to-transparent p-4"}>
-              {item.title && <p className={`text-sm font-semibold ${s.variant === "masonry" ? "" : "text-white"}`} style={s.variant !== "masonry" ? undefined : st.headingStyle}>{item.title}</p>}
-              {item.description && <p className={`mt-0.5 text-xs ${s.variant === "masonry" ? "text-muted-foreground" : "text-white/80"}`} style={s.variant !== "masonry" ? undefined : st.bodyStyle}>{item.description}</p>}
-              {item.link && (
-                <a href={item.link} className={`mt-2 inline-block text-xs font-semibold underline underline-offset-2 hover:opacity-80 ${s.variant === "masonry" ? "" : "text-white"}`}>
-                  Shop the look →
-                </a>
-              )}
+    </>
+  );
+
+  const overlayCard = (item: (typeof items)[number], i: number, className: string) => (
+    <div key={i} className={`relative overflow-hidden group cursor-pointer rounded-2xl bg-muted ${className}`} style={st.cardStyle}>
+      {item.image && <img src={item.image} alt={item.title ?? ""} className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" style={st.imageStyle} />}
+      <div className="absolute inset-0 flex flex-col justify-end bg-gradient-to-t from-black/60 to-transparent p-4">
+        {item.title && <p className="text-sm font-semibold text-white" style={st.headingStyle}>{item.title}</p>}
+        {item.description && <p className="mt-0.5 text-xs text-white/80" style={st.bodyStyle}>{item.description}</p>}
+        {item.link && <a href={item.link} className="mt-2 inline-block text-xs font-semibold text-white underline underline-offset-2 hover:opacity-80">Shop the look →</a>}
+      </div>
+    </div>
+  );
+
+  if (variant === "masonry") {
+    return (
+      <div className="mx-auto max-w-6xl px-4 py-12">
+        {heading}
+        <div className="columns-2 gap-3 sm:columns-3">
+          {items.map((item, i) => (
+            <div key={i} className="relative mb-3 break-inside-avoid overflow-hidden rounded-2xl bg-muted group cursor-pointer" style={st.cardStyle}>
+              {item.image && <img src={item.image} alt={item.title ?? ""} className="w-full transition-transform duration-500 group-hover:scale-105" style={st.imageStyle} />}
+              <div className="p-3">
+                {item.title && <p className="text-sm font-semibold" style={st.headingStyle}>{item.title}</p>}
+                {item.description && <p className="mt-0.5 text-xs text-muted-foreground" style={st.bodyStyle}>{item.description}</p>}
+                {item.link && <a href={item.link} className="mt-2 inline-block text-xs font-semibold underline underline-offset-2 hover:opacity-80">Shop the look →</a>}
+              </div>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (variant === "scroller") {
+    return (
+      <div className="mx-auto max-w-6xl">
+        <div className="px-4">{heading}</div>
+        <div className="flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-2">
+          {items.map((item, i) => overlayCard(item, i, "w-64 shrink-0 snap-start aspect-[3/4]"))}
+        </div>
+      </div>
+    );
+  }
+
+  if (variant === "editorial") {
+    const [first, ...rest] = items;
+    return (
+      <div className="mx-auto max-w-6xl px-4 py-12">
+        {heading}
+        {first && overlayCard(first, 0, "mb-4 aspect-[16/9]")}
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+          {rest.map((item, i) => overlayCard(item, i + 1, "aspect-[3/4]"))}
+        </div>
+      </div>
+    );
+  }
+
+  // grid (default)
+  return (
+    <div className="mx-auto max-w-6xl px-4 py-12">
+      {heading}
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+        {items.map((item, i) => overlayCard(item, i, "aspect-[3/4]"))}
       </div>
     </div>
   );
@@ -3873,6 +4037,49 @@ function LookbookBlock({ s }: { s: LookbookSection }) {
 // ─── Timeline ─────────────────────────────────────────────────────────────────
 function TimelineBlock({ s }: { s: TimelineSection }) {
   const st = useSectionStyles();
+  const variant = (s as any).variant ?? "vertical";
+  const milestones = s.milestones ?? [];
+
+  if (variant === "horizontal") {
+    return (
+      <div className="mx-auto max-w-6xl px-4 py-12">
+        {s.heading && <h2 className={`mb-2 text-center text-2xl font-bold ${st.hFont}`} style={st.headingStyle}>{s.heading}</h2>}
+        {s.subheading && <p className="mb-10 text-center text-muted-foreground" style={st.bodyStyle}>{s.subheading}</p>}
+        <div className="flex snap-x snap-mandatory gap-4 overflow-x-auto pb-2">
+          {milestones.map((m, i) => (
+            <div key={i} className={`w-64 shrink-0 snap-start rounded-xl p-4`} style={st.cardStyle}>
+              <span className="inline-block rounded-full bg-accent px-2.5 py-0.5 text-xs font-bold text-accent-foreground">{m.year}</span>
+              <p className="mt-3 font-semibold" style={st.headingStyle}>{m.title}</p>
+              {m.description && <p className="mt-1 text-sm text-muted-foreground" style={st.bodyStyle}>{m.description}</p>}
+              {m.image && <img src={m.image} alt={m.title} className="mt-3 rounded-xl object-cover max-h-40 w-full" style={st.imageStyle} />}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (variant === "minimal") {
+    return (
+      <div className="mx-auto max-w-2xl px-4 py-12">
+        {s.heading && <h2 className={`mb-2 text-center text-2xl font-bold ${st.hFont}`} style={st.headingStyle}>{s.heading}</h2>}
+        {s.subheading && <p className="mb-10 text-center text-muted-foreground" style={st.bodyStyle}>{s.subheading}</p>}
+        <div className="flex flex-col divide-y divide-border">
+          {milestones.map((m, i) => (
+            <div key={i} className="flex gap-6 py-5">
+              <span className="w-16 shrink-0 text-sm font-bold text-muted-foreground">{m.year}</span>
+              <div>
+                <p className="font-semibold" style={st.headingStyle}>{m.title}</p>
+                {m.description && <p className="mt-1 text-sm text-muted-foreground" style={st.bodyStyle}>{m.description}</p>}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // vertical (default)
   return (
     <div className="mx-auto max-w-3xl px-4 py-12">
       {s.heading && <h2 className={`mb-2 text-center text-2xl font-bold ${st.hFont}`} style={st.headingStyle}>{s.heading}</h2>}
@@ -3880,7 +4087,7 @@ function TimelineBlock({ s }: { s: TimelineSection }) {
       <div className="relative">
         <div className="absolute left-14 top-0 bottom-0 w-px bg-border" />
         <div className="flex flex-col gap-8">
-          {(s.milestones ?? []).map((m, i) => (
+          {milestones.map((m, i) => (
             <div key={i} className="flex gap-6 items-start">
               <div className="w-24 shrink-0 text-right">
                 <span className="inline-block rounded-full bg-accent px-2.5 py-0.5 text-xs font-bold text-accent-foreground">{m.year}</span>
@@ -3900,30 +4107,86 @@ function TimelineBlock({ s }: { s: TimelineSection }) {
 }
 
 // ─── Before / After ───────────────────────────────────────────────────────────
+/** Drag-to-reveal before/after comparison — a range input drives a clip-path on the "after" layer. */
+function BeforeAfterSlider({ before, after }: { before?: string; after?: string }) {
+  const [pos, setPos] = useState(50);
+  return (
+    <div className="relative aspect-video overflow-hidden rounded-xl bg-muted select-none">
+      {before && <img src={before} alt="Before" className="absolute inset-0 h-full w-full object-cover" />}
+      {after && (
+        <div className="absolute inset-0 overflow-hidden" style={{ clipPath: `inset(0 ${100 - pos}% 0 0)` }}>
+          <img src={after} alt="After" className="h-full w-full object-cover" />
+        </div>
+      )}
+      <div className="pointer-events-none absolute inset-y-0 w-0.5 bg-white shadow" style={{ left: `${pos}%` }} />
+      <span className="absolute top-3 left-3 rounded bg-black/60 px-2 py-0.5 text-xs font-bold text-white">BEFORE</span>
+      <span className="absolute top-3 right-3 rounded bg-accent/80 px-2 py-0.5 text-xs font-bold text-accent-foreground">AFTER</span>
+      <input
+        type="range" min={0} max={100} value={pos}
+        onChange={(e) => setPos(Number(e.target.value))}
+        aria-label="Drag to compare before and after"
+        className="absolute inset-x-0 bottom-3 mx-auto w-2/3 accent-white"
+      />
+    </div>
+  );
+}
+
 function BeforeAfterBlock({ s }: { s: BeforeAfterSection }) {
   const st = useSectionStyles();
+  const variant = (s as any).variant ?? "side-by-side";
+  const pairs = s.pairs ?? [];
+
+  if (variant === "slider") {
+    return (
+      <div className="mx-auto max-w-5xl px-4 py-12">
+        {s.heading && <h2 className={`mb-2 text-center text-2xl font-bold ${st.hFont}`} style={st.headingStyle}>{s.heading}</h2>}
+        {s.subheading && <p className="mb-8 text-center text-muted-foreground" style={st.bodyStyle}>{s.subheading}</p>}
+        <div className="flex flex-col gap-8">
+          {pairs.map((p, i) => (
+            <div key={i} className={`rounded-2xl p-4`} style={st.cardStyle}>
+              {p.label && <p className="mb-2 text-sm font-semibold text-muted-foreground uppercase tracking-wider" style={st.headingStyle}>{p.label}</p>}
+              <BeforeAfterSlider before={p.beforeImage} after={p.afterImage} />
+              {p.description && <p className="mt-2 text-sm text-muted-foreground" style={st.bodyStyle}>{p.description}</p>}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  const pairCard = (p: (typeof pairs)[number], i: number) => (
+    <div key={i} className={`rounded-2xl p-4`} style={st.cardStyle}>
+      {p.label && <p className="mb-2 text-sm font-semibold text-muted-foreground uppercase tracking-wider" style={st.headingStyle}>{p.label}</p>}
+      <div className="grid gap-2 sm:grid-cols-2">
+        <div className="relative rounded-xl overflow-hidden bg-muted aspect-video">
+          {p.beforeImage && <img src={p.beforeImage} alt="Before" className="h-full w-full object-cover" />}
+          <span className="absolute top-3 left-3 rounded bg-black/60 px-2 py-0.5 text-xs font-bold text-white">BEFORE</span>
+        </div>
+        <div className="relative rounded-xl overflow-hidden bg-muted aspect-video">
+          {p.afterImage && <img src={p.afterImage} alt="After" className="h-full w-full object-cover" />}
+          <span className="absolute top-3 left-3 rounded bg-accent/80 px-2 py-0.5 text-xs font-bold text-accent-foreground">AFTER</span>
+        </div>
+      </div>
+      {p.description && <p className="mt-2 text-sm text-muted-foreground" style={st.bodyStyle}>{p.description}</p>}
+    </div>
+  );
+
+  if (variant === "grid") {
+    return (
+      <div className="mx-auto max-w-6xl px-4 py-12">
+        {s.heading && <h2 className={`mb-2 text-center text-2xl font-bold ${st.hFont}`} style={st.headingStyle}>{s.heading}</h2>}
+        {s.subheading && <p className="mb-8 text-center text-muted-foreground" style={st.bodyStyle}>{s.subheading}</p>}
+        <div className="grid gap-6 sm:grid-cols-2">{pairs.map(pairCard)}</div>
+      </div>
+    );
+  }
+
+  // side-by-side (default)
   return (
     <div className="mx-auto max-w-5xl px-4 py-12">
       {s.heading && <h2 className={`mb-2 text-center text-2xl font-bold ${st.hFont}`} style={st.headingStyle}>{s.heading}</h2>}
       {s.subheading && <p className="mb-8 text-center text-muted-foreground" style={st.bodyStyle}>{s.subheading}</p>}
-      <div className="flex flex-col gap-8">
-        {(s.pairs ?? []).map((p, i) => (
-          <div key={i} className={`rounded-2xl p-4`} style={st.cardStyle}>
-            {p.label && <p className="mb-2 text-sm font-semibold text-muted-foreground uppercase tracking-wider" style={st.headingStyle}>{p.label}</p>}
-            <div className="grid gap-2 sm:grid-cols-2">
-              <div className="relative rounded-xl overflow-hidden bg-muted aspect-video">
-                {p.beforeImage && <img src={p.beforeImage} alt="Before" className="h-full w-full object-cover" />}
-                <span className="absolute top-3 left-3 rounded bg-black/60 px-2 py-0.5 text-xs font-bold text-white">BEFORE</span>
-              </div>
-              <div className="relative rounded-xl overflow-hidden bg-muted aspect-video">
-                {p.afterImage && <img src={p.afterImage} alt="After" className="h-full w-full object-cover" />}
-                <span className="absolute top-3 left-3 rounded bg-accent/80 px-2 py-0.5 text-xs font-bold text-accent-foreground">AFTER</span>
-              </div>
-            </div>
-            {p.description && <p className="mt-2 text-sm text-muted-foreground" style={st.bodyStyle}>{p.description}</p>}
-          </div>
-        ))}
-      </div>
+      <div className="flex flex-col gap-8">{pairs.map(pairCard)}</div>
     </div>
   );
 }
@@ -3932,26 +4195,54 @@ function BeforeAfterBlock({ s }: { s: BeforeAfterSection }) {
 function BundleOfferBlock({ s }: { s: BundleOfferSection }) {
   const st = useSectionStyles();
   const accentColor = s.accentColor;
+  const variant = (s as any).variant ?? "cards";
+
+  if (variant === "compact") {
+    return (
+      <div className="mx-auto max-w-3xl px-4 py-8">
+        <div className={`flex flex-col items-center gap-4 rounded-xl border border-border p-5 sm:flex-row sm:justify-between ${st.cardRadius}`} style={st.cardStyle}>
+          <div className="text-center sm:text-left">
+            {s.bundleLabel && <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">{s.bundleLabel}</p>}
+            {s.heading && <p className={`font-bold ${st.hFont}`} style={st.headingStyle}>{s.heading}</p>}
+            <div className="mt-1 flex items-baseline justify-center gap-2 sm:justify-start">
+              <span className="text-xl font-bold" style={{ color: accentColor, ...st.priceStyle }}>{s.bundlePrice}</span>
+              {s.originalPrice && <span className="text-sm text-muted-foreground line-through">{s.originalPrice}</span>}
+            </div>
+          </div>
+          {s.ctaLabel && (
+            <a href={s.ctaLink ?? "#"} className={`shrink-0 inline-flex items-center justify-center rounded-full px-6 py-2.5 font-bold text-white hover:opacity-90 transition-opacity`} style={{ backgroundColor: accentColor ?? "hsl(var(--accent))", ...st.btnStyle }}>
+              {s.ctaLabel}
+            </a>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  const isFeatured = variant === "featured";
   return (
     <div className="mx-auto max-w-2xl px-4 py-12 text-center">
       {s.heading && <h2 className={`mb-2 text-2xl font-bold ${st.hFont}`} style={st.headingStyle}>{s.heading}</h2>}
       {s.subheading && <p className="mb-6 text-muted-foreground" style={st.bodyStyle}>{s.subheading}</p>}
-      <div className={`rounded-2xl border-2 p-8 ${st.cardRadius}`} style={{ borderColor: accentColor ?? "hsl(var(--accent))", ...st.cardStyle }}>
-        {s.bundleLabel && <p className="mb-4 text-xs font-semibold uppercase tracking-widest text-muted-foreground">{s.bundleLabel}</p>}
+      <div
+        className={`${isFeatured ? "border-0 text-white" : "border-2"} rounded-2xl p-8 ${st.cardRadius}`}
+        style={isFeatured ? { backgroundColor: accentColor ?? "hsl(var(--accent))" } : { borderColor: accentColor ?? "hsl(var(--accent))", ...st.cardStyle }}
+      >
+        {s.bundleLabel && <p className={`mb-4 text-xs font-semibold uppercase tracking-widest ${isFeatured ? "text-white/80" : "text-muted-foreground"}`}>{s.bundleLabel}</p>}
         <div className="flex items-baseline justify-center gap-3">
-          <span className="text-4xl font-bold" style={{ color: accentColor, ...st.priceStyle }}>{s.bundlePrice}</span>
-          {s.originalPrice && <span className="text-lg text-muted-foreground line-through">{s.originalPrice}</span>}
+          <span className="text-4xl font-bold" style={isFeatured ? undefined : { color: accentColor, ...st.priceStyle }}>{s.bundlePrice}</span>
+          {s.originalPrice && <span className={`text-lg line-through ${isFeatured ? "text-white/70" : "text-muted-foreground"}`}>{s.originalPrice}</span>}
         </div>
         {s.savingsLabel && (
-          <span className="mt-2 inline-block rounded-full bg-green-100 dark:bg-green-900/30 px-3 py-1 text-sm font-semibold text-green-700 dark:text-green-400">
+          <span className={`mt-2 inline-block rounded-full px-3 py-1 text-sm font-semibold ${isFeatured ? "bg-white/20 text-white" : "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400"}`}>
             {s.savingsLabel}
           </span>
         )}
         {s.ctaLabel && (
           <a
             href={s.ctaLink ?? "#"}
-            className={`mt-6 inline-flex items-center justify-center rounded-xl px-8 py-3 font-bold text-white hover:opacity-90 transition-opacity ${st.btnRadius}`}
-            style={{ backgroundColor: accentColor ?? "hsl(var(--accent))", ...st.btnStyle }}
+            className={`mt-6 inline-flex items-center justify-center rounded-xl px-8 py-3 font-bold transition-opacity hover:opacity-90 ${isFeatured ? "bg-white text-black" : "text-white"} ${st.btnRadius}`}
+            style={isFeatured ? undefined : { backgroundColor: accentColor ?? "hsl(var(--accent))", ...st.btnStyle }}
           >
             {s.ctaLabel}
           </a>
@@ -3968,20 +4259,51 @@ function VideoHeroBlock({ s }: { s: VideoHeroSection }) {
   const h = heightMap[s.height ?? "md"];
   const alignClass = s.align === "left" ? "items-start text-left" : s.align === "right" ? "items-end text-right" : "items-center text-center";
   const overlayOpacity = (s.overlayOpacity ?? 40) / 100;
+  const variant = (s as any).variant ?? "overlay";
+
+  const videoLayer = (className: string) =>
+    s.videoUrl ? (
+      <video src={s.videoUrl} poster={s.posterImage} autoPlay muted loop playsInline className={className} />
+    ) : s.posterImage ? (
+      <img src={s.posterImage} alt="" className={className} />
+    ) : (
+      <div className={`${className} bg-neutral-900`} />
+    );
+
+  if (variant === "split") {
+    return (
+      <div className="mx-auto grid max-w-7xl grid-cols-1 items-center gap-10 px-6 py-16 md:grid-cols-2 md:gap-16">
+        <div className={`overflow-hidden ${st.cardRadius}`}>{videoLayer("aspect-video w-full object-cover")}</div>
+        <div>
+          {s.heading && <h1 className={`${st.h1} ${st.hFont}`} style={st.headingStyle}>{s.heading}</h1>}
+          {s.subheading && <p className="mt-4 text-muted-foreground" style={st.bodyStyle}>{s.subheading}</p>}
+          {s.ctaLabel && (
+            <a href={s.ctaLink ?? "#"} className={`mt-6 inline-flex ${st.btn}`} style={st.btnStyle}>{s.ctaLabel}</a>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  if (variant === "minimal") {
+    return (
+      <div className="mx-auto max-w-4xl px-6 py-16 text-center">
+        {s.heading && <h1 className={`${st.h1} ${st.hFont}`} style={st.headingStyle}>{s.heading}</h1>}
+        {s.subheading && <p className="mx-auto mt-4 max-w-xl text-muted-foreground" style={st.bodyStyle}>{s.subheading}</p>}
+        {s.ctaLabel && (
+          <a href={s.ctaLink ?? "#"} className={`mt-6 inline-flex ${st.btn}`} style={st.btnStyle}>{s.ctaLabel}</a>
+        )}
+        <div className={`relative mt-10 overflow-hidden ${h} ${st.cardRadius}`}>
+          {videoLayer("absolute inset-0 h-full w-full object-cover")}
+        </div>
+      </div>
+    );
+  }
+
+  // overlay (default)
   return (
     <div className={`relative overflow-hidden ${h} flex flex-col justify-center px-6`}>
-      {s.videoUrl ? (
-        <video
-          src={s.videoUrl}
-          poster={s.posterImage}
-          autoPlay muted loop playsInline
-          className="absolute inset-0 w-full h-full object-cover"
-        />
-      ) : s.posterImage ? (
-        <img src={s.posterImage} alt="" className="absolute inset-0 w-full h-full object-cover" />
-      ) : (
-        <div className="absolute inset-0 bg-neutral-900" />
-      )}
+      {videoLayer("absolute inset-0 w-full h-full object-cover")}
       <div className="absolute inset-0" style={{ backgroundColor: `rgba(0,0,0,${overlayOpacity})` }} />
       <div className={`relative z-10 flex flex-col gap-4 max-w-3xl mx-auto w-full ${alignClass}`}>
         {s.heading && <h1 className={`text-4xl md:text-6xl font-bold text-white ${st.hFont}`} style={st.headingStyle}>{s.heading}</h1>}
@@ -4001,25 +4323,57 @@ function SocialFeedBlock({ s }: { s: SocialFeedSection }) {
   const st = useSectionStyles();
   const cols = s.columns ?? 3;
   const gridClass = cols <= 2 ? "grid-cols-2" : cols === 3 ? "grid-cols-2 sm:grid-cols-3" : cols === 4 ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-3 sm:grid-cols-5";
-  return (
-    <div className="mx-auto max-w-6xl px-4 py-12">
-      {(s.heading || s.handle) && (
-        <div className="mb-6 flex items-center justify-between">
-          {s.heading && <h2 className={`text-2xl font-bold ${st.hFont}`} style={st.headingStyle}>{s.heading}</h2>}
-          {s.showHandle && s.handle && <p className="text-sm text-muted-foreground">@{s.handle}</p>}
+  const variant = s.variant ?? "grid";
+  const posts = s.posts ?? [];
+
+  const heading = (s.heading || s.handle) && (
+    <div className="mb-6 flex items-center justify-between">
+      {s.heading && <h2 className={`text-2xl font-bold ${st.hFont}`} style={st.headingStyle}>{s.heading}</h2>}
+      {s.showHandle && s.handle && <p className="text-sm text-muted-foreground">@{s.handle}</p>}
+    </div>
+  );
+
+  const tile = (post: (typeof posts)[number], i: number, className: string) => (
+    <a key={i} href={post.link ?? "#"} className={`block relative overflow-hidden ${st.cardRadius} bg-muted group ${className}`} style={st.cardStyle}>
+      {post.imageUri && <img src={post.imageUri} alt={post.caption ?? ""} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />}
+      {post.caption && (
+        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-3">
+          <p className="text-xs text-white line-clamp-2">{post.caption}</p>
         </div>
       )}
-      <div className={`grid gap-2 ${s.variant === "masonry" ? "columns-3" : gridClass}`}>
-        {(s.posts ?? []).map((post, i) => (
-          <a key={i} href={post.link ?? "#"} className={`block relative overflow-hidden ${st.cardRadius} bg-muted aspect-square group`} style={st.cardStyle}>
-            {post.imageUri && <img src={post.imageUri} alt={post.caption ?? ""} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />}
-            {post.caption && (
-              <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-3">
-                <p className="text-xs text-white line-clamp-2">{post.caption}</p>
-              </div>
-            )}
-          </a>
-        ))}
+    </a>
+  );
+
+  if (variant === "scroller") {
+    return (
+      <div className="mx-auto max-w-6xl">
+        <div className="px-4">{heading}</div>
+        <div className="flex snap-x snap-mandatory gap-2 overflow-x-auto px-4 pb-2">
+          {posts.map((post, i) => tile(post, i, "aspect-square w-32 shrink-0 snap-start sm:w-40"))}
+        </div>
+      </div>
+    );
+  }
+
+  if (variant === "masonry") {
+    return (
+      <div className="mx-auto max-w-6xl px-4 py-12">
+        {heading}
+        <div className="columns-2 gap-2 sm:columns-3">
+          {posts.map((post, i) => (
+            <div key={i} className="mb-2 break-inside-avoid">{tile(post, i, "aspect-square")}</div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // grid (default)
+  return (
+    <div className="mx-auto max-w-6xl px-4 py-12">
+      {heading}
+      <div className={`grid gap-2 ${gridClass}`}>
+        {posts.map((post, i) => tile(post, i, "aspect-square"))}
       </div>
     </div>
   );
@@ -4064,19 +4418,39 @@ function MapLocationBlock({ s }: { s: MapLocationSection }) {
       )}
     </div>
   );
+  // Declared variants are simple/split/card (see kioskm SECTION_VARIANTS) — this
+  // used to check for "stacked", a value the editor's picker can never actually
+  // send, so every real choice fell through to the same layout.
+  const variant = (s as any).variant ?? "split";
+
+  if (variant === "simple") {
+    return (
+      <div className="mx-auto max-w-2xl px-4 py-12">
+        {infoCard}
+      </div>
+    );
+  }
+
+  if (variant === "card") {
+    return (
+      <div className="mx-auto max-w-3xl px-4 py-12">
+        {s.mapEmbedUrl && (
+          <div className={`mb-6 overflow-hidden ${st.cardRadius}`}>
+            <iframe src={s.mapEmbedUrl} className="w-full" height="280" loading="lazy" />
+          </div>
+        )}
+        {infoCard}
+      </div>
+    );
+  }
+
+  // split (default)
   return (
     <div className="mx-auto max-w-6xl px-4 py-12">
-      {s.variant === "stacked" ? (
-        <div className="flex flex-col gap-6">
-          {s.mapEmbedUrl && <iframe src={s.mapEmbedUrl} className="w-full rounded-2xl" height="360" loading="lazy" />}
-          {infoCard}
-        </div>
-      ) : (
-        <div className="grid gap-6 lg:grid-cols-2 items-start">
-          {infoCard}
-          {s.mapEmbedUrl && <iframe src={s.mapEmbedUrl} className="w-full rounded-2xl" height="400" loading="lazy" />}
-        </div>
-      )}
+      <div className="grid gap-6 lg:grid-cols-2 items-start">
+        {infoCard}
+        {s.mapEmbedUrl && <iframe src={s.mapEmbedUrl} className="w-full rounded-2xl" height="400" loading="lazy" />}
+      </div>
     </div>
   );
 }
@@ -4086,11 +4460,77 @@ function SizeGuideBlock({ s }: { s: SizeGuideSection }) {
   const st = useSectionStyles();
   const cols = s.columns ?? [];
   const rows = s.rows ?? [];
-  return (
-    <div className="mx-auto max-w-4xl px-4 py-12">
+  const variant = (s as any).variant ?? "table";
+  const [openSize, setOpenSize] = useState<string | null>(null);
+
+  const heading = (
+    <>
       {s.heading && <h2 className={`mb-2 text-center text-2xl font-bold ${st.hFont}`} style={st.headingStyle}>{s.heading}</h2>}
       {s.subheading && <p className="mb-6 text-center text-muted-foreground" style={st.bodyStyle}>{s.subheading}</p>}
       {s.unit && <p className="mb-4 text-center text-xs text-muted-foreground uppercase tracking-wider">All measurements in {s.unit}</p>}
+    </>
+  );
+
+  if (variant === "cards") {
+    return (
+      <div className="mx-auto max-w-4xl px-4 py-12">
+        {heading}
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          {rows.map((row, i) => (
+            <div key={i} className={`rounded-xl border border-border p-4 ${st.cardRadius}`} style={st.cardStyle}>
+              <p className="font-bold" style={st.headingStyle}>{row.size}</p>
+              <dl className="mt-2 space-y-1 text-xs text-muted-foreground">
+                {cols.map((col, j) => (
+                  <div key={j} className="flex justify-between gap-2">
+                    <dt>{col}</dt>
+                    <dd>{row[col] ?? "—"}</dd>
+                  </div>
+                ))}
+              </dl>
+            </div>
+          ))}
+        </div>
+        {s.note && <p className="mt-4 text-center text-xs text-muted-foreground" style={st.bodyStyle}>{s.note}</p>}
+      </div>
+    );
+  }
+
+  if (variant === "accordion") {
+    return (
+      <div className="mx-auto max-w-2xl px-4 py-12">
+        {heading}
+        <div className="divide-y divide-border rounded-xl border border-border" style={st.cardStyle}>
+          {rows.map((row, i) => {
+            const open = openSize === row.size;
+            return (
+              <div key={i}>
+                <button type="button" onClick={() => setOpenSize(open ? null : row.size)} className="flex w-full items-center justify-between px-4 py-3 text-left font-semibold">
+                  {row.size}
+                  <ChevronDown size={14} className={`transition-transform ${open ? "rotate-180" : ""}`} />
+                </button>
+                {open && (
+                  <dl className="grid grid-cols-2 gap-1 px-4 pb-4 text-sm text-muted-foreground">
+                    {cols.map((col, j) => (
+                      <div key={j} className="flex justify-between gap-2">
+                        <dt>{col}</dt>
+                        <dd>{row[col] ?? "—"}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                )}
+              </div>
+            );
+          })}
+        </div>
+        {s.note && <p className="mt-4 text-center text-xs text-muted-foreground" style={st.bodyStyle}>{s.note}</p>}
+      </div>
+    );
+  }
+
+  // table (default)
+  return (
+    <div className="mx-auto max-w-4xl px-4 py-12">
+      {heading}
       <div className="overflow-x-auto rounded-2xl border border-border" style={st.cardStyle}>
         <table className="w-full text-sm">
           <thead>
@@ -4123,38 +4563,91 @@ function PortfolioBlock({ s }: { s: PortfolioSection }) {
   const st = useSectionStyles();
   const cols = s.columns ?? 3;
   const gridClass = cols === 2 ? "grid-cols-1 sm:grid-cols-2" : cols === 4 ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-1 sm:grid-cols-3";
-  return (
-    <div className="mx-auto max-w-6xl px-4 py-12">
+  const variant = (s as any).variant ?? "grid";
+  const items = s.items ?? [];
+
+  const heading = (
+    <>
       {s.heading && <h2 className={`mb-2 text-center text-2xl font-bold ${st.hFont}`} style={st.headingStyle}>{s.heading}</h2>}
       {s.subheading && <p className="mb-8 text-center text-muted-foreground" style={st.bodyStyle}>{s.subheading}</p>}
-      <div className={`grid gap-6 ${gridClass}`}>
-        {(s.items ?? []).map((item, i) => (
-          <div key={i} className={`rounded-2xl overflow-hidden border border-border bg-card ${st.cardRadius}`} style={st.cardStyle}>
-            {item.image && (
-              <div className="aspect-video overflow-hidden bg-muted">
-                <img src={item.image} alt={item.title} className="w-full h-full object-cover transition-transform duration-500 hover:scale-105" style={st.imageStyle} />
-              </div>
-            )}
-            <div className="p-4">
-              {item.category && <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{item.category}</p>}
-              <p className="font-semibold" style={st.headingStyle}>{item.title}</p>
-              {item.description && <p className="mt-1 text-sm text-muted-foreground" style={st.bodyStyle}>{item.description}</p>}
-              {item.tags && item.tags.length > 0 && (
-                <div className="mt-2 flex flex-wrap gap-1">
-                  {item.tags.map((t, ti) => (
-                    <span key={ti} className="rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">{t}</span>
-                  ))}
-                </div>
-              )}
-              {item.link && (
-                <a href={item.link} target="_blank" rel="noopener noreferrer" className={`mt-3 ${st.btnOutline} text-sm`} style={st.btnStyle}>
-                  View project <BoxArrowUpRight size={13} />
-                </a>
-              )}
-            </div>
+    </>
+  );
+
+  const card = (item: (typeof items)[number], i: number) => (
+    <div key={i} className={`rounded-2xl overflow-hidden border border-border bg-card ${st.cardRadius}`} style={st.cardStyle}>
+      {item.image && (
+        <div className="aspect-video overflow-hidden bg-muted">
+          <img src={item.image} alt={item.title} className="w-full h-full object-cover transition-transform duration-500 hover:scale-105" style={st.imageStyle} />
+        </div>
+      )}
+      <div className="p-4">
+        {item.category && <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{item.category}</p>}
+        <p className="font-semibold" style={st.headingStyle}>{item.title}</p>
+        {item.description && <p className="mt-1 text-sm text-muted-foreground" style={st.bodyStyle}>{item.description}</p>}
+        {item.tags && item.tags.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-1">
+            {item.tags.map((t, ti) => (
+              <span key={ti} className="rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">{t}</span>
+            ))}
           </div>
-        ))}
+        )}
+        {item.link && (
+          <a href={item.link} target="_blank" rel="noopener noreferrer" className={`mt-3 ${st.btnOutline} text-sm`} style={st.btnStyle}>
+            View project <BoxArrowUpRight size={13} />
+          </a>
+        )}
       </div>
+    </div>
+  );
+
+  if (variant === "masonry") {
+    return (
+      <div className="mx-auto max-w-6xl px-4 py-12">
+        {heading}
+        <div className="columns-1 gap-6 sm:columns-2 lg:columns-3">
+          {items.map((item, i) => <div key={i} className="mb-6 break-inside-avoid">{card(item, i)}</div>)}
+        </div>
+      </div>
+    );
+  }
+
+  if (variant === "editorial") {
+    const [first, ...rest] = items;
+    return (
+      <div className="mx-auto max-w-6xl px-4 py-12">
+        {heading}
+        {first && <div className="mb-6">{card(first, 0)}</div>}
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {rest.map((item, i) => card(item, i + 1))}
+        </div>
+      </div>
+    );
+  }
+
+  if (variant === "minimal") {
+    return (
+      <div className="mx-auto max-w-4xl px-4 py-12">
+        {heading}
+        <div className="divide-y divide-border">
+          {items.map((item, i) => (
+            <a key={i} href={item.link ?? undefined} target={item.link ? "_blank" : undefined} rel="noopener noreferrer" className="flex items-center justify-between gap-4 py-4 group">
+              <div>
+                {item.category && <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{item.category}</p>}
+                <p className="font-semibold group-hover:underline" style={st.headingStyle}>{item.title}</p>
+              </div>
+              {item.link && <BoxArrowUpRight size={14} className="shrink-0 text-muted-foreground" />}
+            </a>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // grid (default)
+  return (
+    <div className="mx-auto max-w-6xl px-4 py-12">
+      {heading}
+      <div className={`grid gap-6 ${gridClass}`}>{items.map(card)}</div>
     </div>
   );
 }
@@ -4217,7 +4710,28 @@ const TRUST_ICON_MAP: Record<string, React.FC<{ size?: number; className?: strin
 function TrustBadgesBlock({ s }: { s: TrustBadgesSection }) {
   const st = useSectionStyles();
   const badges = s.badges ?? [];
-  const isGrid = s.variant === "grid";
+  const variant = s.variant ?? "row";
+
+  if (variant === "minimal") {
+    return (
+      <div className="mx-auto max-w-4xl px-4 py-8">
+        {s.heading && <h2 className={`mb-4 text-center text-xl font-bold ${st.hFont}`} style={st.headingStyle}>{s.heading}</h2>}
+        <div className="flex flex-wrap justify-center gap-x-6 gap-y-3">
+          {badges.map((badge, i) => {
+            const Icon = TRUST_ICON_MAP[badge.icon] ?? Shield;
+            return (
+              <div key={i} className="flex items-center gap-2 text-sm">
+                <Icon size={15} className="text-primary" />
+                <span style={st.bodyStyle}>{badge.label}</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  const isGrid = variant === "grid";
   return (
     <div className="mx-auto max-w-5xl px-4 py-10">
       {s.heading && <h2 className={`mb-6 text-center text-xl font-bold ${st.hFont}`} style={st.headingStyle}>{s.heading}</h2>}
@@ -4521,12 +5035,43 @@ function useCountdown(target: string) {
 function CountdownBlock({ s }: { s: CountdownSection }) {
   const st = useSectionStyles();
   const left = useCountdown(s.targetDate);
+  const variant = (s as any).variant ?? "box";
   const boxes = left ? [
     { v: String(left.d).padStart(2, "0"), l: "Days" },
     { v: String(left.h).padStart(2, "0"), l: "Hours" },
     { v: String(left.m).padStart(2, "0"), l: "Minutes" },
     { v: String(left.s).padStart(2, "0"), l: "Seconds" },
   ] : [];
+
+  if (variant === "banner") {
+    return (
+      <section className="mx-auto flex max-w-5xl flex-col items-center gap-4 border border-border px-6 py-6 text-center sm:flex-row sm:justify-between sm:text-left" style={st.cardStyle}>
+        <div>
+          {s.heading && <h2 className={`${st.hFont} text-lg font-bold`} style={st.headingStyle}>{s.heading}</h2>}
+          {s.body && <p className="mt-0.5 text-sm text-muted-foreground" style={st.bodyStyle}>{s.body}</p>}
+        </div>
+        {left ? (
+          <div className="flex items-center gap-2 md:gap-3">
+            {boxes.map((b) => (
+              <div key={b.l} className="flex min-w-14 flex-col items-center">
+                <span className="text-xl font-bold tabular-nums" style={st.headingStyle}>{b.v}</span>
+                <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{b.l}</span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">Offer has ended</p>
+        )}
+        {s.ctaLabel && s.ctaLink && (
+          <Link to={s.ctaLink} className={`shrink-0 ${st.btn}`} style={st.btnStyle}>
+            {s.ctaLabel}
+          </Link>
+        )}
+      </section>
+    );
+  }
+
+  // box (default)
   return (
     <section className="mx-auto max-w-4xl px-6 py-10 text-center">
       {s.heading && <h2 className={`${st.h2} ${st.hFont}`} style={st.headingStyle}>{s.heading}</h2>}
@@ -4556,6 +5101,44 @@ function CountdownBlock({ s }: { s: CountdownSection }) {
 
 function StatsBlock({ s }: { s: StatsSection }) {
   const st = useSectionStyles();
+  const variant = (s as any).variant ?? "centered";
+
+  if (variant === "badges") {
+    return (
+      <section className="mx-auto max-w-5xl px-6 py-10">
+        {s.heading && <h2 className={`mb-8 text-center ${st.h2} ${st.hFont}`} style={st.headingStyle}>{s.heading}</h2>}
+        <div className="flex flex-wrap justify-center gap-4">
+          {s.items.map((it, i) => (
+            <div key={i} className={`flex items-center gap-3 border border-border px-5 py-3 ${st.cardRadius}`} style={st.cardStyle}>
+              <span className={`${st.hFont} text-2xl font-bold`} style={st.headingStyle}>{it.value}</span>
+              <div className="text-left">
+                <p className="text-xs font-medium leading-tight">{it.label}</p>
+                {it.description && <p className="text-[11px] leading-tight text-muted-foreground">{it.description}</p>}
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+    );
+  }
+
+  if (variant === "minimal") {
+    return (
+      <section className="mx-auto max-w-4xl px-6 py-10">
+        {s.heading && <h2 className={`mb-8 text-center ${st.h2} ${st.hFont}`} style={st.headingStyle}>{s.heading}</h2>}
+        <div className="flex flex-wrap items-baseline justify-center divide-x divide-border">
+          {s.items.map((it, i) => (
+            <div key={i} className="px-6 py-2 text-center first:pl-0 last:pr-0">
+              <span className={`${st.hFont} text-2xl font-bold`} style={st.headingStyle}>{it.value}</span>
+              <span className="ml-2 text-sm text-muted-foreground">{it.label}</span>
+            </div>
+          ))}
+        </div>
+      </section>
+    );
+  }
+
+  // centered (default)
   return (
     <section className="mx-auto max-w-5xl px-6 py-10">
       {s.heading && <h2 className={`mb-8 text-center ${st.h2} ${st.hFont}`} style={st.headingStyle}>{s.heading}</h2>}
@@ -4574,6 +5157,31 @@ function StatsBlock({ s }: { s: StatsSection }) {
 
 function TeamBlock({ s }: { s: TeamSection }) {
   const st = useSectionStyles();
+  const variant = (s as any).variant ?? "cards";
+
+  if (variant === "minimal") {
+    return (
+      <section className="mx-auto max-w-3xl px-6 py-10">
+        {s.heading && <h2 className={`mb-2 text-center ${st.h2} ${st.hFont}`} style={st.headingStyle}>{s.heading}</h2>}
+        {s.subheading && <p className="mb-8 text-center text-muted-foreground" style={st.bodyStyle}>{s.subheading}</p>}
+        <div className="divide-y divide-border">
+          {s.members.map((m, i) => (
+            <div key={i} className="flex items-center gap-4 py-4">
+              {m.avatar
+                ? <img src={m.avatar} alt={m.name} className="h-12 w-12 shrink-0 rounded-full object-cover" />
+                : <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-secondary text-muted-foreground"><Person size={20} /></div>}
+              <div>
+                <p className="font-semibold">{m.name}</p>
+                <p className="text-sm text-muted-foreground">{m.role}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+    );
+  }
+
+  // cards (default)
   return (
     <section className="mx-auto max-w-6xl px-6 py-10">
       {s.heading && <h2 className={`mb-2 text-center ${st.h2} ${st.hFont}`} style={st.headingStyle}>{s.heading}</h2>}
