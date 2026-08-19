@@ -29,21 +29,17 @@ function About() {
     );
   }
 
+  // Default fallback when no sections are configured — matches contact.tsx's
+  // pattern. This used to be hardcoded Atelier demo copy ("independent design
+  // studio... Portugal, Japan, and the American South") that every vendor who
+  // hadn't customized their About page would see as if it were real content.
   return (
     <div className="mx-auto max-w-3xl px-6 py-20">
       <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">About</p>
-      <h1 className="mt-3 font-serif text-5xl leading-tight md:text-6xl">A small studio for everyday objects.</h1>
-      <div className="mt-10 space-y-6 text-lg leading-relaxed text-foreground/80">
-        <p>
-          Atelier is an independent design studio working at the intersection of craft and quiet utility. We design our pieces in-house, then partner with a handful of small workshops in Portugal, Japan, and the American South to bring them into the world.
-        </p>
-        <p>
-          We release a few new things each season, in small runs. We choose materials that improve with age — full-grain leather, washed linen, brushed steel, hand-glazed stoneware — and we mend what we make, for as long as you own it.
-        </p>
-        <p>
-          The goal is simple: a smaller shelf of better things.
-        </p>
-      </div>
+      <h1 className="mt-3 font-serif text-5xl leading-tight md:text-6xl">Get to know us.</h1>
+      <p className="mt-6 text-lg text-muted-foreground">
+        Add an About section to this page from the editor to tell your story.
+      </p>
     </div>
   );
 }
