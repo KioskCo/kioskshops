@@ -3,7 +3,7 @@ import { List, Moon, Search, Bag, SunFill, XLg, PersonCircle } from "react-boots
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useCart } from "@/lib/cart";
-import { useStorefront } from "@/lib/storefront";
+import { useStorefront, useDesignTokens, HEADING_FONT_META } from "@/lib/storefront";
 import { useVendorProducts } from "@/lib/vendorProducts";
 
 type Product = { slug: string; name: string; description: string; image: string; price: number; tagline?: string };
@@ -94,6 +94,14 @@ function SearchResults({
 export function SiteHeader() {
   const { count, setOpen } = useCart();
   const { theme, setTheme, navbar } = useStorefront();
+  const designTokens = useDesignTokens();
+  // Brand wordmark follows its own "Brand font" override when set, otherwise
+  // falls back to the store-wide heading font — never plain browser default.
+  const brandMeta = HEADING_FONT_META[navbar.brandFont ?? designTokens.fontHeading ?? "serif"] ?? HEADING_FONT_META.serif;
+  const brandStyle: React.CSSProperties = {
+    ...(brandMeta.family ? { fontFamily: brandMeta.family } : {}),
+    ...(navbar.brandFontSize ? { fontSize: navbar.brandFontSize } : {}),
+  };
   const { products } = useVendorProducts();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [mobileVisible, setMobileVisible] = useState(false);
@@ -180,7 +188,7 @@ export function SiteHeader() {
             {navbar.logoImage && (logoMode === "logo" || logoMode === "both") && (
               <img src={navbar.logoImage} alt={navbar.brand} style={{ height: `${logoHeight}px`, maxWidth: `${logoHeight * 2.2}px`, objectFit: "contain", objectPosition: "left center" }} />
             )}
-            {(logoMode === "text" || logoMode === "both" || !navbar.logoImage) && <span>{navbar.brand}</span>}
+            {(logoMode === "text" || logoMode === "both" || !navbar.logoImage) && <span style={brandStyle}>{navbar.brand}</span>}
           </Link>
         </div>
 
@@ -311,7 +319,7 @@ export function SiteHeader() {
                 {navbar.logoImage && (logoMode === "logo" || logoMode === "both") && (
                   <img src={navbar.logoImage} alt={navbar.brand} style={{ height: `${Math.min(logoHeight, 24)}px`, maxWidth: `${Math.min(logoHeight, 24) * 2.2}px`, objectFit: "contain", objectPosition: "left center" }} />
                 )}
-                {(logoMode === "text" || logoMode === "both" || !navbar.logoImage) && <span>{navbar.brand}</span>}
+                {(logoMode === "text" || logoMode === "both" || !navbar.logoImage) && <span style={brandStyle}>{navbar.brand}</span>}
               </div>
               <button onClick={closeMobile} className="inline-flex h-8 w-8 items-center justify-center rounded-full hover:bg-secondary">
                 <XLg style={{ fontSize: 18 }} />

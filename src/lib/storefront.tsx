@@ -1255,6 +1255,10 @@ export type NavbarConfig = {
   cartIcon?: string;
   menuIcon?: string;
   profileIcon?: string;
+  /** Custom font for the brand name text (e.g. Playfair Display for a luxury look) */
+  brandFont?: FontHeading;
+  /** Custom font size for the brand name */
+  brandFontSize?: number;
   ctaButtons?: Array<{
     label: string;
     href: string;
@@ -1797,12 +1801,17 @@ export function StorefrontProvider({ children }: { children: ReactNode }) {
     document.documentElement.classList.toggle("dark", effectiveTheme === "dark");
   }, [effectiveTheme]);
 
+  const effectiveNavbarBrandFont = (vendorTpl?.navbar ?? active.navbar)?.brandFont;
+
   useEffect(() => {
     if (typeof document === "undefined") return;
     const tokens = effectiveTokens;
     const hMeta = HEADING_FONT_META[tokens.fontHeading ?? "serif"] ?? HEADING_FONT_META.serif;
     const bMeta = BODY_FONT_META[tokens.fontBody ?? "inherit"] ?? BODY_FONT_META["inherit"];
-    const needed = [hMeta.googleId, bMeta.googleId].filter((id): id is string => !!id);
+    // Navbar's own "Brand font" override (site-header.tsx) needs its Google Font
+    // loaded too when it differs from the store-wide heading font.
+    const brandMeta = effectiveNavbarBrandFont ? HEADING_FONT_META[effectiveNavbarBrandFont] : undefined;
+    const needed = [hMeta.googleId, bMeta.googleId, brandMeta?.googleId].filter((id): id is string => !!id);
     const existing = new Set(
       Array.from(document.querySelectorAll<HTMLLinkElement>("link[data-kf]")).map((el) => el.getAttribute("data-kf")),
     );
@@ -1814,7 +1823,7 @@ export function StorefrontProvider({ children }: { children: ReactNode }) {
       link.setAttribute("data-kf", googleId);
       document.head.appendChild(link);
     });
-  }, [effectiveTokens]);
+  }, [effectiveTokens, effectiveNavbarBrandFont]);
 
   // Record current state to history before a mutation
   const recordHistory = (prev: Persisted) => {

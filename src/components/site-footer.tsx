@@ -1,4 +1,5 @@
-import { useStorefront, type FooterSocialPlatform } from "@/lib/storefront";
+import type { CSSProperties } from "react";
+import { useStorefront, useDesignTokens, HEADING_FONT_META, BODY_FONT_META, type FooterSocialPlatform } from "@/lib/storefront";
 import {
   Instagram,
   Twitter,
@@ -26,11 +27,19 @@ function SocialIcon({ platform }: { platform: FooterSocialPlatform }) {
 
 export function SiteFooter() {
   const { footer } = useStorefront();
+  const tokens = useDesignTokens();
   const align = footer.textAlign ?? "left";
   const alignClass = align === "center" ? "text-center" : align === "right" ? "text-right" : "text-left";
   const flexClass = align === "center" ? "justify-center" : align === "right" ? "justify-end" : "justify-start";
   const logoMode = footer.logoMode ?? "text";
   const logoH = footer.logoHeight ?? 32;
+
+  // The footer has no font override of its own — it follows the store-wide
+  // Typography setting (same fonts as every section), the way it should.
+  const hMeta = HEADING_FONT_META[tokens.fontHeading ?? "serif"] ?? HEADING_FONT_META.serif;
+  const bMeta = BODY_FONT_META[tokens.fontBody ?? "inherit"] ?? BODY_FONT_META["inherit"];
+  const headingStyle: CSSProperties = hMeta.family ? { fontFamily: hMeta.family } : {};
+  const bodyStyle: CSSProperties = bMeta.family ? { fontFamily: bMeta.family } : {};
 
   return (
     <footer className="mt-24 border-t border-border">
@@ -49,11 +58,11 @@ export function SiteFooter() {
                 />
               )}
               {(logoMode === "text" || logoMode === "both" || !footer.logoMode) && (
-                <p className={`text-xl font-semibold ${alignClass}`}>{footer.brand}</p>
+                <p className={`text-xl font-semibold ${alignClass}`} style={headingStyle}>{footer.brand}</p>
               )}
             </div>
             {footer.tagline && (
-              <p className={`mt-2 text-sm text-muted-foreground ${alignClass}`}>{footer.tagline}</p>
+              <p className={`mt-2 text-sm text-muted-foreground ${alignClass}`} style={bodyStyle}>{footer.tagline}</p>
             )}
 
             {/* CTA buttons */}
@@ -111,8 +120,8 @@ export function SiteFooter() {
           {/* Link columns */}
           {footer.columns.map((c, i) => (
             <div key={i}>
-              <p className={`text-sm font-semibold ${alignClass}`}>{c.title}</p>
-              <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
+              <p className={`text-sm font-semibold ${alignClass}`} style={headingStyle}>{c.title}</p>
+              <ul className="mt-3 space-y-2 text-sm text-muted-foreground" style={bodyStyle}>
                 {c.links.map((l, j) => (
                   <li key={j}>
                     <a href={l.href} className={`hover:text-foreground ${alignClass} block`}>{l.label}</a>
@@ -125,7 +134,7 @@ export function SiteFooter() {
       </div>
 
       <div className="border-t border-border">
-        <div className={`mx-auto max-w-7xl px-6 py-4 text-xs text-muted-foreground ${alignClass}`}>
+        <div className={`mx-auto max-w-7xl px-6 py-4 text-xs text-muted-foreground ${alignClass}`} style={bodyStyle}>
           © {new Date().getFullYear()} {footer.brand}. All rights reserved.
         </div>
       </div>

@@ -1,6 +1,6 @@
 import { Link as RouterLink, useNavigate, useLocation } from "@tanstack/react-router";
 import { ArrowRight, CheckLg, CreditCard2Front, ArrowRepeat, DashLg, PlusLg } from "react-bootstrap-icons";
-import React, { createContext, useContext, useEffect, useRef, useState } from "react";
+import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft, ArrowUp, ArrowDown, ChevronRight, ChevronDown, ChevronLeft,
   BoxArrowUpRight, Star, StarFill, Heart, HeartFill, Bag, BagPlus, Cart3,
@@ -14,6 +14,7 @@ import {
   Linkedin, Pinterest, Clock,
   Gem as Crown, Grid3x3Gap as Grid, LayoutTextWindow,
   FileText, ChatDots, HandThumbsUp, BookmarkFill, ShareFill,
+  CarFrontFill, Leaf, CupHot,
 } from "react-bootstrap-icons";
 import { useServerFn } from "@tanstack/react-start";
 const Link = RouterLink as unknown as React.ComponentType<{ to: string; search?: Record<string, unknown>; className?: string; style?: React.CSSProperties; children?: React.ReactNode }>;
@@ -124,6 +125,35 @@ const GOOGLE_FONT_FAMILIES = new Set([
   "Abril Fatface", "Pacifico", "Great Vibes",
 ]);
 
+// The kioskm editor's per-element "Font family" picker (Design tab → pick a part →
+// Font family) stores the RN/Expo asset name it needs for its own native preview
+// (e.g. "PlayfairDisplay_700Bold"), not a browser-usable family name. Translate
+// those to the real Google Fonts display name here so the web renders the same
+// font the vendor picked — this covers every option in kioskm's ELEMENT_FONT_OPTIONS.
+// "serif"/"monospace" pass through unchanged: they're valid generic CSS keywords.
+const RN_FONT_TO_WEB: Record<string, string> = {
+  Inter_400Regular: "Inter",
+  Inter_700Bold: "Inter",
+  PlayfairDisplay_700Bold: "Playfair Display",
+  Lora_400Regular: "Lora",
+  CormorantGaramond_700Bold: "Cormorant Garamond",
+  Cinzel_700Bold: "Cinzel",
+  Poppins_600SemiBold: "Poppins",
+  Raleway_600SemiBold: "Raleway",
+  JosefinSans_600SemiBold: "Josefin Sans",
+  Oswald_700Bold: "Oswald",
+  Montserrat_700Bold: "Montserrat",
+  DancingScript_700Bold: "Dancing Script",
+  GreatVibes_400Regular: "Great Vibes",
+  Pacifico_400Regular: "Pacifico",
+  AbrilFatface_400Regular: "Abril Fatface",
+};
+
+function resolveElFontFamily(raw: unknown): string | undefined {
+  if (typeof raw !== "string" || !raw) return undefined;
+  return RN_FONT_TO_WEB[raw] ?? raw;
+}
+
 function loadGoogleFont(fontFamily: string) {
   const name = fontFamily.replace(/['"]/g, "").split(",")[0].trim();
   if (!GOOGLE_FONT_FAMILIES.has(name)) return;
@@ -139,6 +169,9 @@ type SectionOverride = {
   headingColor?: string;
   accentColor?: string;
   fontSize?: "sm" | "md" | "lg" | "xl";
+  /** Per-section "Heading font (this section only)" override — a FontHeading key
+   * (e.g. "playfair"), same set as the global Typography heading font. */
+  headingFont?: string;
   headingWeight?: string;
   headingLetterSpacing?: "tight" | "normal" | "wide" | "wider";
   bodySize?: "xs" | "sm" | "base" | "lg" | "xl";
@@ -183,7 +216,8 @@ function useSectionStyles() {
     tokens.buttonShape === "square" ? "rounded-none" :
     tokens.buttonShape === "rounded" ? "rounded-md" : "rounded-lg";
 
-  const hMeta = HEADING_FONT_META[tokens.fontHeading ?? "serif"] ?? HEADING_FONT_META.serif;
+  // A section's own "Heading font" override wins over the store-wide Typography setting.
+  const hMeta = HEADING_FONT_META[override.headingFont ?? tokens.fontHeading ?? "serif"] ?? HEADING_FONT_META.serif;
   const bMeta = BODY_FONT_META[tokens.fontBody ?? "inherit"] ?? BODY_FONT_META["inherit"];
   const headingTransform = tokens.headingCase === "uppercase" ? "uppercase tracking-[0.12em]" : "";
   const hFont = [hMeta.twClass, headingTransform].filter(Boolean).join(" ");
@@ -211,19 +245,34 @@ function useSectionStyles() {
   // Line-height map
   const lhMap: Record<string, string> = { tight: "1.25", normal: "1.5", relaxed: "1.75", loose: "2" };
 
-  // Per-element style overrides (element-level wins over section-level)
-  const el = override.elStyles ?? {};
+  // Per-element style overrides (element-level wins over section-level).
+  // fontFamily is normalized from kioskm's RN font names to real web font names
+  // here, once, so every consumer below (and the Google Fonts loader) sees a
+  // browser-usable value without each section component needing to know about it.
+  const el = useMemo(() => {
+    const raw = override.elStyles ?? {};
+    const out: Record<string, React.CSSProperties> = {};
+    for (const [key, styles] of Object.entries(raw)) {
+      if (!styles) continue;
+      const ff = (styles as Record<string, unknown>).fontFamily;
+      out[key] = ff ? { ...styles, fontFamily: resolveElFontFamily(ff) } : styles;
+    }
+    return out;
+  }, [override.elStyles]);
   const elCss = override.elCustomCss ?? {};
   const elIcons = override.elIcons ?? {};
 
-  // Load any Google Fonts referenced in element style overrides
+  // Load any Google Fonts referenced in element style overrides, plus this
+  // section's own heading-font override (the store-wide heading/body fonts are
+  // already loaded once, globally, by StorefrontProvider).
   useEffect(() => {
     for (const styles of Object.values(el)) {
       const ff = (styles as Record<string, unknown>)?.fontFamily;
       if (typeof ff === "string") loadGoogleFont(ff);
     }
+    if (override.headingFont && hMeta.family) loadGoogleFont(hMeta.family);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [override.elStyles]);
+  }, [el, override.headingFont]);
 
   // Helper: parse raw CSS and merge after CSSProperties — raw CSS wins last
   const merge = (base: React.CSSProperties, raw?: string): React.CSSProperties =>
@@ -2828,6 +2877,16 @@ const CUSTOM_ICON_MAP: Record<string, IconComp> = {
   play: PlayCircle, chat: ChatDots, "file-text": FileText,
   layout: LayoutTextWindow, grid: Grid, dots: ThreeDotsVertical,
   "credit-card": CreditCard2Front, "arrow-repeat": ArrowRepeat,
+  // Aliases for the kioskm editor's icon picker (LayoutControls' KIOSK_ICONS),
+  // which uses Ionicons naming — different from the react-bootstrap-icons keys
+  // above. Without these, picking one of these in the editor rendered as the
+  // generic "dots" fallback on the live shop since the name never matched.
+  "arrow-forward": ArrowRight, "arrow-back": ArrowLeft, "chevron-forward": ChevronRight,
+  "checkmark-circle": CheckCircleFill, "close-circle": XCircle,
+  flash: Lightning, flame: Fire, ribbon: Award, sparkles: Stars,
+  mail: Envelope, call: Telephone, "musical-notes": MusicNote, cube: Box,
+  pricetag: Tag, "lock-open": Lock, "shield-checkmark": Shield, sunny: Sun,
+  car: CarFrontFill, leaf: Leaf, cafe: CupHot,
 };
 
 function resolveIcon(name: string): IconComp {
@@ -3559,6 +3618,26 @@ function CustomSectionView({ s }: { s: CustomSection }) {
   const align = alignMap[s.align ?? "start"];
   const bodyFamily = BODY_FONT_META[tokens.fontBody ?? "inherit"]?.family;
   const direction = (s as any).direction ?? "column";
+
+  // Same RN-font → web-font normalization as useSectionStyles(), applied here since
+  // custom sections render blocks through their own path rather than that hook.
+  const customElStyles = useMemo(() => {
+    const raw = ((s as any).elStyles ?? {}) as Record<string, React.CSSProperties>;
+    const out: Record<string, React.CSSProperties> = {};
+    for (const [key, styles] of Object.entries(raw)) {
+      if (!styles) continue;
+      const ff = (styles as Record<string, unknown>).fontFamily;
+      out[key] = ff ? { ...styles, fontFamily: resolveElFontFamily(ff) } : styles;
+    }
+    return out;
+  }, [(s as any).elStyles]);
+
+  useEffect(() => {
+    for (const styles of Object.values(customElStyles)) {
+      const ff = (styles as Record<string, unknown>)?.fontFamily;
+      if (typeof ff === "string") loadGoogleFont(ff);
+    }
+  }, [customElStyles]);
   const PX: Record<string, string> = { none: "0", sm: "24px", md: "48px", lg: "80px" };
   const PY: Record<string, string> = { none: "0", sm: "24px", md: "40px", lg: "80px" };
 
@@ -3605,10 +3684,10 @@ function CustomSectionView({ s }: { s: CustomSection }) {
           const hasWrapStyle = Object.values(wrapStyle).some((v) => v !== undefined);
           return hasWrapStyle ? (
             <div key={block.id} style={wrapStyle}>
-              <BlockRenderer block={block} ctx={{ tokens, elStyles: (s as any).elStyles ?? {} }} />
+              <BlockRenderer block={block} ctx={{ tokens, elStyles: customElStyles }} />
             </div>
           ) : (
-            <BlockRenderer key={block.id} block={block} ctx={{ tokens, elStyles: (s as any).elStyles ?? {} }} />
+            <BlockRenderer key={block.id} block={block} ctx={{ tokens, elStyles: customElStyles }} />
           );
         })}
       </div>
@@ -4641,6 +4720,7 @@ export function SectionRenderer({ section, vendorId }: { section: Section; vendo
       headingColor: section.headingColor,
       accentColor: section.accentColor,
       fontSize: section.fontSize,
+      headingFont: (section as any).headingFont,
       headingWeight: section.headingWeight,
       headingLetterSpacing: section.headingLetterSpacing,
       bodySize: section.bodySize,
