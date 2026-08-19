@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "@tanstack/react-router";
-import { List, Moon, Search, Bag, SunFill, XLg, PersonCircle } from "react-bootstrap-icons";
+import { List, Moon, Search, Bag, SunFill, XLg, PersonCircle, ChevronRight, ArrowRight } from "react-bootstrap-icons";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useCart } from "@/lib/cart";
@@ -91,6 +91,27 @@ function SearchResults({
   );
 }
 
+// Easing curve per mobile-sidebar animation choice — "slide" is the plain
+// default; the rest reuse the same translateX/opacity transition with a
+// different feel via timing function alone (no extra deps/keyframes needed).
+const SIDEBAR_EASING: Record<string, string> = {
+  slide: "cubic-bezier(0.4, 0, 0.2, 1)",
+  spring: "cubic-bezier(0.34, 1.56, 0.64, 1)",
+  bounce: "cubic-bezier(0.68, -0.6, 0.32, 1.6)",
+  fade: "ease",
+  none: "linear",
+};
+
+function ListMarker({ style, index }: { style?: string; index: number }) {
+  switch (style) {
+    case "chevron": return <ChevronRight size={12} className="shrink-0 opacity-40" />;
+    case "arrow": return <ArrowRight size={12} className="shrink-0 opacity-40" />;
+    case "dot": return <span className="inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-current opacity-40" />;
+    case "numbered": return <span className="w-4 shrink-0 text-xs tabular-nums opacity-50">{index + 1}.</span>;
+    default: return null;
+  }
+}
+
 export function SiteHeader() {
   const { count, setOpen } = useCart();
   const { theme, setTheme, navbar } = useStorefront();
@@ -126,6 +147,7 @@ export function SiteHeader() {
 
   const logoMode = navbar.logoMode ?? "text";
   const logoHeight = navbar.logoHeight ?? 28;
+  const sidebarAnim = navbar.sidebarAnimation ?? "slide";
 
   const openMobile = () => {
     if (closeTimer.current) clearTimeout(closeTimer.current);
@@ -174,31 +196,52 @@ export function SiteHeader() {
   const goToSearch = () => { closeSearch(); navigate({ to: "/search", search: { q } as any }); };
   const goToProduct = (slug: string) => { closeSearch(); navigate({ to: "/product/$slug", params: { slug } }); };
 
+  // "logo-left" (default): logo beside the menu button, nav centered.
+  // "logo-center": nav moves beside the menu button, logo takes the center.
+  // "logo-right": nav beside the menu button, logo sits next to the icon cluster.
+  const layout = navbar.layout ?? "logo-left";
+
+  const hamburgerBtn = (
+    <button onClick={openMobile} className="inline-flex h-10 w-10 items-center justify-center rounded-full hover:bg-white/10 md:hidden" aria-label="Menu">
+      <List className="h-4 w-4" />
+    </button>
+  );
+
+  const logoBlock = (
+    <Link to="/" className="flex items-center gap-0.5 text-xl font-semibold tracking-tight">
+      {navbar.logoImage && (logoMode === "logo" || logoMode === "both") && (
+        <img src={navbar.logoImage} alt={navbar.brand} style={{ height: `${logoHeight}px`, maxWidth: `${logoHeight * 2.2}px`, objectFit: "contain", objectPosition: "left center" }} />
+      )}
+      {(logoMode === "text" || logoMode === "both" || !navbar.logoImage) && <span style={brandStyle}>{navbar.brand}</span>}
+    </Link>
+  );
+
+  const navBlock = (
+    <nav className="hidden items-center gap-6 text-sm md:flex">
+      {navLinks}
+    </nav>
+  );
+
   return (
     <header className={`${headerClass} relative`} style={headerStyle}>
       {/* ── Main header row (always in DOM, never replaced) ── */}
-      <div className={`mx-auto flex h-16 max-w-7xl items-center justify-between gap-3 px-4 md:px-6 ${textOverride}`}>
+      <div className={`mx-auto grid h-16 max-w-7xl grid-cols-[1fr_auto_1fr] items-center gap-3 px-4 md:px-6 ${textOverride}`}>
 
-        {/* Logo + hamburger */}
-        <div className="flex items-center gap-3">
-          <button onClick={openMobile} className="inline-flex h-10 w-10 items-center justify-center rounded-full hover:bg-white/10 md:hidden" aria-label="Menu">
-            <List className="h-4 w-4" />
-          </button>
-          <Link to="/" className="flex items-center gap-0.5 text-xl font-semibold tracking-tight">
-            {navbar.logoImage && (logoMode === "logo" || logoMode === "both") && (
-              <img src={navbar.logoImage} alt={navbar.brand} style={{ height: `${logoHeight}px`, maxWidth: `${logoHeight * 2.2}px`, objectFit: "contain", objectPosition: "left center" }} />
-            )}
-            {(logoMode === "text" || logoMode === "both" || !navbar.logoImage) && <span style={brandStyle}>{navbar.brand}</span>}
-          </Link>
+        {/* Left slot: menu button always here; logo or nav depending on layout */}
+        <div className="flex items-center gap-3 justify-self-start">
+          {hamburgerBtn}
+          {layout === "logo-left" ? logoBlock : navBlock}
         </div>
 
-        {/* Center nav — always present, never removed */}
-        <nav className="hidden items-center gap-6 text-sm md:flex">
-          {navLinks}
-        </nav>
+        {/* Center slot */}
+        <div className="justify-self-center">
+          {layout === "logo-left" ? navBlock : layout === "logo-center" ? logoBlock : null}
+        </div>
 
-        {/* Right icons + CTA buttons */}
-        <div className="flex items-center gap-1">
+        {/* Right slot: icons + CTA buttons, logo joins them for logo-right */}
+        <div className="flex items-center gap-4 justify-self-end">
+          {layout === "logo-right" && logoBlock}
+          <div className="flex items-center gap-1">
           {/* Left-positioned CTA buttons (non-sidebar-only) */}
           {(navbar.ctaButtons ?? []).filter((b) => b.navPosition === "left" && !b.showInSidebar).map((btn, i) => {
             const cls = btn.style === "solid"
@@ -250,6 +293,7 @@ export function SiteHeader() {
               : { color: btn.btnColor ?? "inherit" };
             return <a key={i} href={btn.href} className={cls} style={sty}>{btn.label}</a>;
           })}
+          </div>
         </div>
       </div>
 
@@ -310,8 +354,16 @@ export function SiteHeader() {
         <div className="fixed inset-0 z-[200] md:hidden" onClick={closeMobile}>
           <div className={`absolute inset-0 bg-black/50 transition-opacity duration-300 ${mobileVisible ? "opacity-100" : "opacity-0"}`} />
           <div
-            className={`absolute left-0 top-0 h-full w-72 border-r border-border bg-background p-5 shadow-2xl transition-transform duration-300 ease-in-out ${mobileVisible ? "translate-x-0" : "-translate-x-full"}`}
-            style={{ backgroundColor: "var(--background)" }}
+            className="absolute left-0 top-0 h-full w-72 border-r border-border p-5 shadow-2xl"
+            style={{
+              backgroundColor: "var(--background)",
+              transitionProperty: sidebarAnim === "fade" ? "opacity" : sidebarAnim === "none" ? "none" : "transform",
+              transitionDuration: sidebarAnim === "none" ? "0ms" : "300ms",
+              transitionTimingFunction: SIDEBAR_EASING[sidebarAnim],
+              ...(sidebarAnim === "fade"
+                ? { opacity: mobileVisible ? 1 : 0 }
+                : { transform: mobileVisible ? "translateX(0)" : "translateX(-100%)" }),
+            }}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-6 flex items-center justify-between">
@@ -336,7 +388,12 @@ export function SiteHeader() {
                       : "rounded-md px-3 py-2.5 text-sm hover:bg-secondary";
                   return <a key={i} href={l.href} onClick={closeMobile} className={btnClass}>{l.label}</a>;
                 }
-                return <a key={i} href={l.href} onClick={closeMobile} className="rounded-md px-3 py-2.5 text-sm hover:bg-secondary">{l.label}</a>;
+                return (
+                  <a key={i} href={l.href} onClick={closeMobile} className="flex items-center gap-2 rounded-md px-3 py-2.5 text-sm hover:bg-secondary">
+                    <ListMarker style={navbar.listStyle} index={i} />
+                    {l.label}
+                  </a>
+                );
               })}
               {navbar.showProfileIcon && (
                 <a href={navbar.profileLink ?? "/login"} onClick={closeMobile} className="flex items-center gap-2 rounded-md px-3 py-2.5 text-sm hover:bg-secondary">

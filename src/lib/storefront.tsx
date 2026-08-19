@@ -1228,9 +1228,9 @@ export type NavLink = {
 };
 export type NavbarLogoMode = "text" | "logo" | "both";
 export type NavbarStyle = "default" | "transparent" | "filled" | "minimal" | "bordered";
-export type SidebarAnimation = "slide" | "fade" | "scale";
-export type SidebarListStyle = "plain" | "bordered" | "card";
-export type NavbarLayout = "default" | "centered" | "split";
+export type SidebarAnimation = "slide" | "fade" | "spring" | "bounce" | "none";
+export type SidebarListStyle = "plain" | "chevron" | "arrow" | "dot" | "numbered";
+export type NavbarLayout = "logo-left" | "logo-center" | "logo-right";
 export type NavbarConfig = {
   brand: string;
   logoImage?: string;
