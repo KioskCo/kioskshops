@@ -942,6 +942,14 @@ function CarouselSectionView({ s }: { s: CarouselSection }) {
   const showArrows = s.showArrows !== false;
   const showDots = s.showDots !== false;
   const heightClass = heightClassFor(variant, s.height);
+  // Rounds each slide's image/card — never the section itself. Full-bleed
+  // variants (banner/fullwidth/thumbnail's main slide, fade) are edge-to-edge
+  // by default, where rounded corners would just be clipped by the viewport
+  // edge and invisible — so rounding those insets the image slightly (only
+  // once a radius is actually set) rather than silently doing nothing.
+  // Cards/thumbnails are never edge-to-edge, so they round in place.
+  const radius = s.borderRadius ?? 0;
+  const inset = radius > 0 ? 14 : 0;
 
   useEffect(() => {
     if (!api || !autoplay || slides.length < 2) return;
@@ -952,7 +960,7 @@ function CarouselSectionView({ s }: { s: CarouselSection }) {
   if (slides.length === 0) return null;
 
   if (variant === "fade") {
-    return <CarouselFade slides={slides} heightClass={heightClass} showArrows={showArrows} showDots={showDots} autoplay={autoplay} intervalMs={intervalMs} />;
+    return <CarouselFade slides={slides} heightClass={heightClass} showArrows={showArrows} showDots={showDots} autoplay={autoplay} intervalMs={intervalMs} radius={radius} inset={inset} />;
   }
 
   if (variant === "cards") {
@@ -962,7 +970,7 @@ function CarouselSectionView({ s }: { s: CarouselSection }) {
           <CarouselContent className="px-4 md:px-6">
             {slides.map((slide, i) => (
               <CarouselItem key={i} className="basis-[78%] sm:basis-[45%] lg:basis-[30%]">
-                <Link to={slide.ctaLink ?? "#"} className={`relative block w-full overflow-hidden rounded-2xl ${heightClass}`}>
+                <Link to={slide.ctaLink ?? "#"} className={`relative block w-full overflow-hidden ${heightClass}`} style={{ borderRadius: s.borderRadius ?? 16 }}>
                   {slide.image
                     ? <img src={slide.image} alt={slide.heading ?? ""} className="absolute inset-0 h-full w-full object-cover" />
                     : <div className="absolute inset-0 bg-gradient-to-br from-primary/40 to-primary/10" />}
@@ -993,25 +1001,27 @@ function CarouselSectionView({ s }: { s: CarouselSection }) {
         <CarouselContent>
           {slides.map((slide, i) => (
             <CarouselItem key={i} className="basis-full">
-              <div className={`relative w-full overflow-hidden ${heightClass}`}>
-                {slide.image
-                  ? <img src={slide.image} alt={slide.heading ?? ""} className="absolute inset-0 h-full w-full object-cover" />
-                  : <div className="absolute inset-0 bg-gradient-to-br from-primary/40 to-primary/10" />}
-                {(slide.heading || slide.body || slide.ctaLabel) && (
-                  <>
-                    <div className="absolute inset-0 bg-black/30" />
-                    <div className={`relative z-10 flex h-full flex-col px-6 text-white ${isBanner ? "items-center justify-center text-center" : "items-start justify-end px-8 pb-10 text-left"}`}>
-                      {slide.eyebrow && <p className="text-xs uppercase tracking-[0.2em] opacity-80">{slide.eyebrow}</p>}
-                      {slide.heading && <h2 className={`mt-2 font-bold ${isBanner ? "text-xl md:text-3xl" : "text-2xl md:text-4xl"}`}>{slide.heading}</h2>}
-                      {slide.body && <p className={`mt-2 max-w-lg opacity-90 ${isBanner ? "text-xs md:text-sm" : "text-sm md:text-base"}`}>{slide.body}</p>}
-                      {slide.ctaLabel && (
-                        <Link to={slide.ctaLink ?? "#"} className="mt-4 inline-flex w-fit items-center justify-center rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90">
-                          {slide.ctaLabel}
-                        </Link>
-                      )}
-                    </div>
-                  </>
-                )}
+              <div className={heightClass} style={{ paddingLeft: inset, paddingRight: inset, paddingTop: inset / 2, paddingBottom: inset / 2 }}>
+                <div className="relative h-full w-full overflow-hidden" style={{ borderRadius: radius }}>
+                  {slide.image
+                    ? <img src={slide.image} alt={slide.heading ?? ""} className="absolute inset-0 h-full w-full object-cover" />
+                    : <div className="absolute inset-0 bg-gradient-to-br from-primary/40 to-primary/10" />}
+                  {(slide.heading || slide.body || slide.ctaLabel) && (
+                    <>
+                      <div className="absolute inset-0 bg-black/30" />
+                      <div className={`relative z-10 flex h-full flex-col px-6 text-white ${isBanner ? "items-center justify-center text-center" : "items-start justify-end px-8 pb-10 text-left"}`}>
+                        {slide.eyebrow && <p className="text-xs uppercase tracking-[0.2em] opacity-80">{slide.eyebrow}</p>}
+                        {slide.heading && <h2 className={`mt-2 font-bold ${isBanner ? "text-xl md:text-3xl" : "text-2xl md:text-4xl"}`}>{slide.heading}</h2>}
+                        {slide.body && <p className={`mt-2 max-w-lg opacity-90 ${isBanner ? "text-xs md:text-sm" : "text-sm md:text-base"}`}>{slide.body}</p>}
+                        {slide.ctaLabel && (
+                          <Link to={slide.ctaLink ?? "#"} className="mt-4 inline-flex w-fit items-center justify-center rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90">
+                            {slide.ctaLabel}
+                          </Link>
+                        )}
+                      </div>
+                    </>
+                  )}
+                </div>
               </div>
             </CarouselItem>
           ))}
@@ -1024,12 +1034,12 @@ function CarouselSectionView({ s }: { s: CarouselSection }) {
         )}
         {showDots && variant !== "thumbnail" && <CarouselDots count={slides.length} light />}
       </Carousel>
-      {variant === "thumbnail" && slides.length > 1 && <CarouselThumbnails slides={slides} api={api} />}
+      {variant === "thumbnail" && slides.length > 1 && <CarouselThumbnails slides={slides} api={api} radius={radius} />}
     </section>
   );
 }
 
-function CarouselThumbnails({ slides, api }: { slides: NonNullable<CarouselSection["slides"]>; api?: CarouselApi }) {
+function CarouselThumbnails({ slides, api, radius }: { slides: NonNullable<CarouselSection["slides"]>; api?: CarouselApi; radius?: number }) {
   const [selected, setSelected] = useState(0);
   useEffect(() => {
     if (!api) return;
@@ -1046,7 +1056,8 @@ function CarouselThumbnails({ slides, api }: { slides: NonNullable<CarouselSecti
           key={i}
           onClick={() => api?.scrollTo(i)}
           aria-label={`Go to slide ${i + 1}`}
-          className={`h-14 w-14 shrink-0 overflow-hidden rounded-lg border-2 ${i === selected ? "border-primary" : "border-transparent"}`}
+          className={`h-14 w-14 shrink-0 overflow-hidden border-2 ${i === selected ? "border-primary" : "border-transparent"}`}
+          style={{ borderRadius: radius ?? 8 }}
         >
           {slide.image ? <img src={slide.image} alt="" className="h-full w-full object-cover" /> : <div className="h-full w-full bg-muted" />}
         </button>
@@ -1055,13 +1066,15 @@ function CarouselThumbnails({ slides, api }: { slides: NonNullable<CarouselSecti
   );
 }
 
-function CarouselFade({ slides, heightClass, showArrows, showDots, autoplay, intervalMs }: {
+function CarouselFade({ slides, heightClass, showArrows, showDots, autoplay, intervalMs, radius = 0, inset = 0 }: {
   slides: NonNullable<CarouselSection["slides"]>;
   heightClass: string;
   showArrows: boolean;
   showDots: boolean;
   autoplay: boolean;
   intervalMs: number;
+  radius?: number;
+  inset?: number;
 }) {
   const [index, setIndex] = useState(0);
   useEffect(() => {
@@ -1071,9 +1084,9 @@ function CarouselFade({ slides, heightClass, showArrows, showDots, autoplay, int
   }, [autoplay, intervalMs, slides.length]);
 
   return (
-    <section className={`relative w-full overflow-hidden ${heightClass}`}>
+    <section className={`relative w-full ${heightClass}`} style={{ paddingLeft: inset, paddingRight: inset, paddingTop: inset / 2, paddingBottom: inset / 2 }}>
       {slides.map((slide, i) => (
-        <div key={i} className={`absolute inset-0 transition-opacity duration-700 ${i === index ? "opacity-100" : "pointer-events-none opacity-0"}`}>
+        <div key={i} className={`absolute inset-0 overflow-hidden transition-opacity duration-700 ${i === index ? "opacity-100" : "pointer-events-none opacity-0"}`} style={{ borderRadius: radius }}>
           {slide.image
             ? <img src={slide.image} alt={slide.heading ?? ""} className="absolute inset-0 h-full w-full object-cover" />
             : <div className="absolute inset-0 bg-gradient-to-br from-primary/40 to-primary/10" />}

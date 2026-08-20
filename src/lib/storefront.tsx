@@ -209,6 +209,8 @@ export type CarouselSection = SectionBase & {
   showArrows?: boolean;
   showDots?: boolean;
   height?: "sm" | "md" | "lg" | "full";
+  /** Corner radius applied to each slide's image/card — NOT the section itself. 0 = square, 9999 = pill. */
+  borderRadius?: number;
 };
 export type CartBtnLayout = "below" | "right";
 export type ProductCardVariant = "classic" | "minimal" | "overlay" | "horizontal" | "bordered" | "floating" | "editorial" | "chip";
