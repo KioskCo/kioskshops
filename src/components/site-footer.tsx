@@ -32,7 +32,7 @@ export function SiteFooter() {
   const alignClass = align === "center" ? "text-center" : align === "right" ? "text-right" : "text-left";
   const flexClass = align === "center" ? "justify-center" : align === "right" ? "justify-end" : "justify-start";
   const logoMode = footer.logoMode ?? "text";
-  const logoH = footer.logoHeight ?? 32;
+  const logoH = footer.logoHeight ?? 40;
 
   // The footer has no font override of its own — it follows the store-wide
   // Typography setting (same fonts as every section), the way it should.

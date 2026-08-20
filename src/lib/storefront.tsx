@@ -1231,6 +1231,7 @@ export type NavbarLogoMode = "text" | "logo" | "both";
 export type NavbarStyle = "default" | "transparent" | "filled" | "minimal" | "bordered";
 export type SidebarAnimation = "slide" | "fade" | "spring" | "bounce" | "none";
 export type SidebarListStyle = "plain" | "chevron" | "arrow" | "dot" | "numbered";
+export type SidebarTheme = "solid" | "glass" | "dark" | "minimal" | "accent";
 export type NavbarLayout = "logo-left" | "logo-center" | "logo-right";
 export type MobileMenuStyle = "left" | "right" | "bottom" | "fullscreen";
 export type CartDrawerStyle = "right" | "left" | "bottom" | "center";
@@ -1246,6 +1247,7 @@ export type NavbarConfig = {
   sticky: boolean;
   sidebarAnimation?: SidebarAnimation;
   listStyle?: SidebarListStyle;
+  sidebarTheme?: SidebarTheme;
   layout?: NavbarLayout;
   showCartCount?: boolean;
   cartBadgeColor?: string;

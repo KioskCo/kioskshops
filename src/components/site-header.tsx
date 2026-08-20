@@ -3,6 +3,8 @@ import {
   List, Search, Bag, XLg, PersonCircle, ChevronRight, ArrowRight,
   Person, PersonVcard, People, BagCheck, BagPlus, Cart, Cart3, Gift, Shop,
   Grid, Grid3x3Gap, Justify, ThreeDots, ThreeDotsVertical, UpcScan, Upc,
+  House, InfoCircle, Envelope, Telephone, Heart, Star, QuestionCircle,
+  Tag, Book, Images, Calendar, GeoAlt, ChatDots, BoxArrowInRight, Box,
 } from "react-bootstrap-icons";
 import type { Icon as IconType } from "react-bootstrap-icons";
 
@@ -29,7 +31,18 @@ const MENU_ICONS: Record<string, IconType> = {
   "grid-outline": Grid3x3Gap, "apps-outline": Grid,
   "ellipsis-horizontal-outline": ThreeDots, "ellipsis-vertical-outline": ThreeDotsVertical,
 };
-import { useCallback, useEffect, useRef, useState } from "react";
+// Icon set for individual nav links / pages — the enumerated names a merchant can pick from
+// in the kioskm editor's per-link icon picker (editor-panels.tsx).
+const NAV_LINK_ICONS: Record<string, IconType> = {
+  "home-outline": House, "information-circle-outline": InfoCircle,
+  "storefront-outline": Shop, "mail-outline": Envelope, "call-outline": Telephone,
+  "heart-outline": Heart, "star-outline": Star, "gift-outline": Gift,
+  "help-circle-outline": QuestionCircle, "pricetag-outline": Tag, "book-outline": Book,
+  "images-outline": Images, "calendar-outline": Calendar, "location-outline": GeoAlt,
+  "chatbubble-outline": ChatDots, "log-in-outline": BoxArrowInRight,
+  "person-outline": Person, "cart-outline": Cart3, "cube-outline": Box,
+};
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { useCart } from "@/lib/cart";
 import { useStorefront, useDesignTokens, HEADING_FONT_META } from "@/lib/storefront";
@@ -153,6 +166,47 @@ const MENU_PANEL_SHOWN: Record<string, string> = {
   fullscreen: "translateY(0)",
 };
 
+// Sidebar "look" — a visual treatment for the mobile menu panel, independent of which
+// edge it opens from. Overrides the *raw* design tokens (--background, --secondary, …)
+// rather than --color-* — Tailwind's utilities resolve --color-background: var(--background)
+// at point of use, so every child (link hover states, icons, text) picks up the override
+// automatically without touching each one individually. "glass" and "accent" lean on
+// color-mix(), supported in all evergreen browsers.
+function sidebarThemeStyle(theme: string): CSSProperties {
+  switch (theme) {
+    case "dark":
+      return {
+        ["--background" as string]: "#111111",
+        ["--foreground" as string]: "#ffffff",
+        ["--secondary" as string]: "rgba(255,255,255,0.08)",
+        ["--secondary-foreground" as string]: "#ffffff",
+        ["--muted-foreground" as string]: "rgba(255,255,255,0.6)",
+        ["--border" as string]: "rgba(255,255,255,0.12)",
+        backgroundColor: "var(--background)",
+        color: "var(--foreground)",
+      };
+    case "accent":
+      return {
+        ["--secondary" as string]: "color-mix(in oklab, var(--accent-foreground) 15%, transparent)",
+        ["--secondary-foreground" as string]: "var(--accent-foreground)",
+        ["--muted-foreground" as string]: "color-mix(in oklab, var(--accent-foreground) 70%, transparent)",
+        ["--border" as string]: "color-mix(in oklab, var(--accent-foreground) 20%, transparent)",
+        backgroundColor: "var(--accent)",
+        color: "var(--accent-foreground)",
+      };
+    case "glass":
+      return {
+        backgroundColor: "color-mix(in oklab, var(--background) 68%, transparent)",
+        backdropFilter: "blur(20px) saturate(160%)",
+        WebkitBackdropFilter: "blur(20px) saturate(160%)",
+      };
+    case "minimal":
+      return { backgroundColor: "var(--background)", boxShadow: "none", borderColor: "transparent" };
+    default:
+      return { backgroundColor: "var(--background)" };
+  }
+}
+
 function ListMarker({ style, index }: { style?: string; index: number }) {
   switch (style) {
     case "chevron": return <ChevronRight size={12} className="shrink-0 opacity-40" />;
@@ -204,9 +258,10 @@ export function SiteHeader() {
   }, []);
 
   const logoMode = navbar.logoMode ?? "text";
-  const logoHeight = navbar.logoHeight ?? 28;
+  const logoHeight = navbar.logoHeight ?? 40;
   const sidebarAnim = navbar.sidebarAnimation ?? "slide";
   const menuStyle = navbar.mobileMenuStyle ?? "left";
+  const sidebarTheme = navbar.sidebarTheme ?? "solid";
   const SearchIcon = SEARCH_ICONS[navbar.searchIcon ?? "search-outline"] ?? Search;
   const ProfileIcon = PROFILE_ICONS[navbar.profileIcon ?? "person-circle-outline"] ?? PersonCircle;
   const CartIcon = CART_ICONS[navbar.cartIcon ?? "bag-outline"] ?? Bag;
@@ -244,6 +299,7 @@ export function SiteHeader() {
   const textOverride = navStyle === "filled" ? "text-white" : "";
 
   const navLinks = navbar.links.map((l, i) => {
+    const LinkIcon = l.icon ? NAV_LINK_ICONS[l.icon] : undefined;
     if (l.isButton) {
       const btnClass =
         l.btnStyle === "solid"
@@ -251,9 +307,19 @@ export function SiteHeader() {
           : l.btnStyle === "outline"
           ? "rounded border border-accent px-4 py-1.5 font-medium text-accent hover:bg-accent/10 transition-colors"
           : `rounded px-4 py-1.5 font-medium ${textOverride ? "text-white/80 hover:text-white" : "text-foreground/80 hover:text-foreground"}`;
-      return <a key={i} href={l.href} className={btnClass}>{l.label}</a>;
+      return (
+        <a key={i} href={l.href} className={`${btnClass} inline-flex items-center gap-1.5`}>
+          {LinkIcon && <LinkIcon size={14} />}
+          {l.label}
+        </a>
+      );
     }
-    return <a key={i} href={l.href} className={`${textOverride ? "text-white/80 hover:text-white" : "text-foreground/80 hover:text-foreground"}`}>{l.label}</a>;
+    return (
+      <a key={i} href={l.href} className={`inline-flex items-center gap-1.5 ${textOverride ? "text-white/80 hover:text-white" : "text-foreground/80 hover:text-foreground"}`}>
+        {LinkIcon && <LinkIcon size={14} />}
+        {l.label}
+      </a>
+    );
   });
 
   const goToSearch = () => { closeSearch(); navigate({ to: "/search", search: { q } as any }); };
@@ -288,7 +354,11 @@ export function SiteHeader() {
   return (
     <header className={`${headerClass} relative`} style={headerStyle}>
       {/* ── Main header row (always in DOM, never replaced) ── */}
-      <div className={`mx-auto grid h-16 max-w-7xl grid-cols-[1fr_auto_1fr] items-center gap-3 px-4 md:px-6 ${textOverride}`}>
+      {/* Row height grows with the logo so large logos never get clipped or overlap surrounding content. */}
+      <div
+        className={`mx-auto grid max-w-7xl grid-cols-[1fr_auto_1fr] items-center gap-3 px-4 md:px-6 ${textOverride}`}
+        style={{ minHeight: `${Math.max(64, logoHeight + 24)}px` }}
+      >
 
         {/* Left slot: menu button always here; logo or nav depending on layout */}
         <div className="flex items-center gap-3 justify-self-start">
@@ -412,9 +482,9 @@ export function SiteHeader() {
         <div className="fixed inset-0 z-[200] md:hidden" onClick={closeMobile}>
           <div className={`absolute inset-0 bg-black/50 transition-opacity duration-300 ${mobileVisible ? "opacity-100" : "opacity-0"}`} />
           <div
-            className={`absolute p-5 shadow-2xl ${MENU_PANEL_CLASS[menuStyle]}`}
+            className={`absolute p-5 ${sidebarTheme === "minimal" ? "" : "shadow-2xl"} ${MENU_PANEL_CLASS[menuStyle]}`}
             style={{
-              backgroundColor: "var(--background)",
+              ...sidebarThemeStyle(sidebarTheme),
               transitionProperty: sidebarAnim === "fade" ? "opacity" : sidebarAnim === "none" ? "none" : "transform",
               transitionDuration: sidebarAnim === "none" ? "0ms" : "300ms",
               transitionTimingFunction: SIDEBAR_EASING[sidebarAnim],
@@ -427,7 +497,7 @@ export function SiteHeader() {
             <div className="mb-6 flex items-center justify-between">
               <div className="flex items-center gap-0.5 text-lg font-semibold">
                 {navbar.logoImage && (logoMode === "logo" || logoMode === "both") && (
-                  <img src={navbar.logoImage} alt={navbar.brand} style={{ height: `${Math.min(logoHeight, 24)}px`, maxWidth: `${Math.min(logoHeight, 24) * 2.2}px`, objectFit: "contain", objectPosition: "left center" }} />
+                  <img src={navbar.logoImage} alt={navbar.brand} style={{ height: `${Math.min(logoHeight, 36)}px`, maxWidth: `${Math.min(logoHeight, 36) * 2.2}px`, objectFit: "contain", objectPosition: "left center" }} />
                 )}
                 {(logoMode === "text" || logoMode === "both" || !navbar.logoImage) && <span style={brandStyle}>{navbar.brand}</span>}
               </div>
@@ -437,6 +507,7 @@ export function SiteHeader() {
             </div>
             <nav className="flex flex-col gap-1">
               {navbar.links.map((l, i) => {
+                const LinkIcon = l.icon ? NAV_LINK_ICONS[l.icon] : undefined;
                 if (l.isButton) {
                   const btnClass =
                     l.btnStyle === "solid"
@@ -444,11 +515,16 @@ export function SiteHeader() {
                       : l.btnStyle === "outline"
                       ? "rounded-md border border-accent px-3 py-2.5 text-sm font-medium text-accent text-center"
                       : "rounded-md px-3 py-2.5 text-sm hover:bg-secondary";
-                  return <a key={i} href={l.href} onClick={closeMobile} className={btnClass}>{l.label}</a>;
+                  return (
+                    <a key={i} href={l.href} onClick={closeMobile} className={`${btnClass} inline-flex items-center justify-center gap-1.5`}>
+                      {LinkIcon && <LinkIcon size={16} />}
+                      {l.label}
+                    </a>
+                  );
                 }
                 return (
                   <a key={i} href={l.href} onClick={closeMobile} className="flex items-center gap-2 rounded-md px-3 py-2.5 text-sm hover:bg-secondary">
-                    <ListMarker style={navbar.listStyle} index={i} />
+                    {LinkIcon ? <LinkIcon size={16} className="shrink-0" /> : <ListMarker style={navbar.listStyle} index={i} />}
                     {l.label}
                   </a>
                 );
