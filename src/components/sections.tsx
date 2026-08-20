@@ -24,7 +24,7 @@ import { formatPrice, NIGERIAN_STATES, type Product } from "@/lib/products";
 import { useVendorProducts } from "@/lib/vendorProducts";
 import { useCart } from "@/lib/cart";
 import {
-  ALIGN9_CLASS, PADDING_CLASS, useStorefront, useDesignTokens,
+  ALIGN9_CLASS, PADDING_CLASS, useStorefront, useDesignTokens, isPlatformHost,
   HEADING_FONT_META, BODY_FONT_META,
   type AnnouncementSection, type HeroSection, type FeaturedProductsSection, type ImageTextSection,
   type RichTextSection, type GallerySection, type CollectionListSection, type NewsletterSection,
@@ -2668,7 +2668,14 @@ function BuyerReferrals({ s, vendorId }: { s: BuyerReferralsSection; vendorId?: 
       .catch(() => {});
   }, [phone, vendorId]);
 
-  const shareUrl = info?.referralUrl ?? (info?.code && info.storeUsername ? `${window.location.origin}?ref=${info.code}` : null);
+  // Fallback only fires if the API couldn't build a referralUrl (e.g. vendor has no
+  // active template yet). On the platform's own domain, stores live at /@username —
+  // omitting that prefix silently pointed the referral link at the bare platform
+  // root instead of the vendor's shop. A custom domain's root IS the vendor's shop,
+  // so no prefix is needed there.
+  const shareUrl = info?.referralUrl ?? (info?.code && info.storeUsername
+    ? `${window.location.origin}${isPlatformHost(window.location.hostname) ? `/@${info.storeUsername}` : ""}?ref=${info.code}`
+    : null);
 
   const copy = () => {
     if (!shareUrl) return;

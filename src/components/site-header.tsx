@@ -45,7 +45,7 @@ const NAV_LINK_ICONS: Record<string, IconType> = {
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { useCart } from "@/lib/cart";
-import { useStorefront, useDesignTokens, HEADING_FONT_META } from "@/lib/storefront";
+import { useStorefront, useDesignTokens, HEADING_FONT_META, isPlatformHost, getPersistedVendorSlug } from "@/lib/storefront";
 import { useVendorProducts } from "@/lib/vendorProducts";
 
 type Product = { slug: string; name: string; description: string; image: string; price: number; tagline?: string };
@@ -225,9 +225,20 @@ export function SiteHeader() {
   // path-based store that's /@username, not the platform's bare "/" (which
   // is a totally different, non-shop page). Custom domains don't have a
   // /@username segment at all, so "/" is already correct for them.
+  //
+  // Some in-shop links (checkout, product pages) intentionally navigate to
+  // their own top-level route rather than staying under /@username — those
+  // routes need their own component logic (real checkout/payment flow, a
+  // dynamic product slug the generic page-matcher can't resolve), so they
+  // can't just be re-pointed at /@username/checkout etc. That means the URL
+  // legitimately loses its /@username prefix on those pages. Falling back to
+  // the persisted vendor slug (set the moment any /@username page loads) so
+  // the logo still finds its way home from there, instead of landing on the
+  // platform's own default page.
   const { pathname } = useLocation();
   const vendorPrefix = pathname.match(/^\/@[a-z0-9_]+/i)?.[0];
-  const shopHome = vendorPrefix ?? "/";
+  const persistedSlug = typeof window !== "undefined" && isPlatformHost(window.location.hostname) ? getPersistedVendorSlug() : null;
+  const shopHome = vendorPrefix ?? (persistedSlug ? `/@${persistedSlug}` : "/");
   // Brand wordmark follows its own "Brand font" override when set, otherwise
   // falls back to the store-wide heading font — never plain browser default.
   const brandMeta = HEADING_FONT_META[navbar.brandFont ?? designTokens.fontHeading ?? "serif"] ?? HEADING_FONT_META.serif;

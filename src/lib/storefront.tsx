@@ -1695,7 +1695,7 @@ function getStorageKey(): string {
 // sessionStorage, not localStorage, so it never bleeds across browser
 // sessions/devices — so any route can re-hydrate on a fresh mount.
 const ACTIVE_VENDOR_SLUG_KEY = "kiosk_active_vendor_slug";
-function getPersistedVendorSlug(): string | null {
+export function getPersistedVendorSlug(): string | null {
   try { return typeof window !== "undefined" ? sessionStorage.getItem(ACTIVE_VENDOR_SLUG_KEY) : null; } catch { return null; }
 }
 export function setPersistedVendorSlug(slug: string) {

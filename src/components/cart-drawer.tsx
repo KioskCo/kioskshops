@@ -1,4 +1,4 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useLocation } from "@tanstack/react-router";
 import { XLg, DashLg, PlusLg } from "react-bootstrap-icons";
 import { useCart } from "@/lib/cart";
 import { useStorefront, type CartDrawerStyle } from "@/lib/storefront";
@@ -29,6 +29,18 @@ export function CartDrawer() {
   const { open, setOpen, detailed, subtotal, setQty, remove, count } = useCart();
   const { navbar } = useStorefront();
   const style = navbar.cartDrawerStyle ?? "right";
+
+  // On the platform's own domain, a store lives at /@username — a plain "/shop"
+  // link would drop that prefix and, once the buyer navigates further, strand
+  // them without a way back to this vendor's shop (e.g. the navbar logo link
+  // resolves off the current URL). Preserve whatever vendor prefix the URL
+  // already carries (a custom domain's root has none, and needs none). Plain
+  // <a> here (not <Link>) so it re-resolves the vendor fresh from the server
+  // rather than trusting in-memory state that may be stale by the time this
+  // is clicked.
+  const { pathname } = useLocation();
+  const vendorPrefix = pathname.match(/^\/@[a-z0-9_]+/i)?.[0] ?? "";
+
   return (
     <>
       <div
@@ -49,14 +61,13 @@ export function CartDrawer() {
             <div className="flex h-full flex-col items-center justify-center text-center text-muted-foreground">
               <p className="font-serif text-2xl text-foreground">Your bag is empty</p>
               <p className="mt-2 text-sm">Discover something worth keeping.</p>
-              <Link
-                to="/shop"
-                search={{ category: "" }}
+              <a
+                href={`${vendorPrefix}/shop`}
                 onClick={() => setOpen(false)}
                 className="mt-6 inline-flex h-11 items-center justify-center rounded-full bg-primary px-6 text-sm text-primary-foreground transition-opacity hover:opacity-90"
               >
                 Browse the shop
-              </Link>
+              </a>
             </div>
           ) : (
             <ul className="divide-y divide-border">
