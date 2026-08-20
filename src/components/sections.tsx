@@ -19,14 +19,14 @@ import {
 import { useServerFn } from "@tanstack/react-start";
 const Link = RouterLink as unknown as React.ComponentType<{ to: string; search?: Record<string, unknown>; className?: string; style?: React.CSSProperties; children?: React.ReactNode }>;
 import { ProductCard } from "@/components/product-card";
-import { Carousel, CarouselContent, CarouselItem, CarouselPrevious, CarouselNext, useCarousel } from "@/components/ui/carousel";
+import { Carousel, CarouselContent, CarouselItem, CarouselPrevious, CarouselNext, useCarousel, type CarouselApi } from "@/components/ui/carousel";
 import { formatPrice, NIGERIAN_STATES, type Product } from "@/lib/products";
 import { useVendorProducts } from "@/lib/vendorProducts";
 import { useCart } from "@/lib/cart";
 import {
   ALIGN9_CLASS, PADDING_CLASS, useStorefront, useDesignTokens, isPlatformHost,
   HEADING_FONT_META, BODY_FONT_META,
-  type AnnouncementSection, type HeroSection, type FeaturedProductsSection, type ImageTextSection,
+  type AnnouncementSection, type HeroSection, type CarouselSection, type FeaturedProductsSection, type ImageTextSection,
   type RichTextSection, type GallerySection, type CollectionListSection, type NewsletterSection,
   type CtaBannerSection, type TextColumnsSection, type TestimonialsSection, type LogoBarSection,
   type FaqSection, type VideoSection, type SpacerSection, type RelatedProductsSection,
@@ -914,6 +914,216 @@ function Hero({ s }: { s: HeroSection }) {
           </div>
         </div>
       </div>
+    </section>
+  );
+}
+
+// ─── Carousel (standalone section) ───────────────────────────────────────────
+// "banner" is the requested advert-banner look: wide and squat, overlay text +
+// CTA, closer to a rotating promo strip than a full hero. The others differ in
+// how much of the slide is "chrome" (cards peek neighbours, fullwidth is
+// edge-to-edge, thumbnail adds a jump strip, fade crossfades instead of sliding).
+function heightClassFor(variant: string, height?: string): string {
+  if (variant === "banner") {
+    return height === "sm" ? "h-[140px] md:h-[180px]" : height === "lg" ? "h-[240px] md:h-[320px]" : height === "full" ? "h-[320px] md:h-[420px]" : "h-[180px] md:h-[260px]";
+  }
+  if (variant === "cards") {
+    return height === "sm" ? "h-[220px]" : height === "lg" ? "h-[380px]" : height === "full" ? "h-[460px]" : "h-[300px]";
+  }
+  return height === "sm" ? "h-[300px]" : height === "lg" ? "h-[560px]" : height === "full" ? "h-[80vh]" : "h-[420px]"; // fullwidth / thumbnail / fade
+}
+
+function CarouselSectionView({ s }: { s: CarouselSection }) {
+  const variant = s.variant ?? "banner";
+  const slides = s.slides ?? [];
+  const [api, setApi] = useState<CarouselApi>();
+  const autoplay = s.autoplay !== false;
+  const intervalMs = Math.max(2, s.autoplaySeconds ?? 5) * 1000;
+  const showArrows = s.showArrows !== false;
+  const showDots = s.showDots !== false;
+  const heightClass = heightClassFor(variant, s.height);
+
+  useEffect(() => {
+    if (!api || !autoplay || slides.length < 2) return;
+    const id = setInterval(() => api.scrollNext(), intervalMs);
+    return () => clearInterval(id);
+  }, [api, autoplay, intervalMs, slides.length]);
+
+  if (slides.length === 0) return null;
+
+  if (variant === "fade") {
+    return <CarouselFade slides={slides} heightClass={heightClass} showArrows={showArrows} showDots={showDots} autoplay={autoplay} intervalMs={intervalMs} />;
+  }
+
+  if (variant === "cards") {
+    return (
+      <section className="py-6">
+        <Carousel setApi={setApi} className="w-full" opts={{ align: "start", loop: true }}>
+          <CarouselContent className="px-4 md:px-6">
+            {slides.map((slide, i) => (
+              <CarouselItem key={i} className="basis-[78%] sm:basis-[45%] lg:basis-[30%]">
+                <Link to={slide.ctaLink ?? "#"} className={`relative block w-full overflow-hidden rounded-2xl ${heightClass}`}>
+                  {slide.image
+                    ? <img src={slide.image} alt={slide.heading ?? ""} className="absolute inset-0 h-full w-full object-cover" />
+                    : <div className="absolute inset-0 bg-gradient-to-br from-primary/40 to-primary/10" />}
+                  <div className="absolute inset-0 bg-black/25" />
+                  <div className="relative z-10 flex h-full flex-col justify-end p-5 text-white">
+                    {slide.eyebrow && <p className="text-xs uppercase tracking-wider opacity-80">{slide.eyebrow}</p>}
+                    {slide.heading && <h3 className="mt-1 text-xl font-bold">{slide.heading}</h3>}
+                    {slide.ctaLabel && <span className="mt-2 text-sm font-semibold underline underline-offset-4">{slide.ctaLabel}</span>}
+                  </div>
+                </Link>
+              </CarouselItem>
+            ))}
+          </CarouselContent>
+        </Carousel>
+        {/* No dot indicators here — the cards variant shows several slides at once (peeking
+            neighbours), which already signals "there's more to scroll" the way a single
+            full-bleed slide can't; CarouselDots is also absolutely positioned to overlay a
+            full-bleed image, which would sit awkwardly across the bottom of rounded cards. */}
+      </section>
+    );
+  }
+
+  // banner / fullwidth / thumbnail — full-bleed paging slides
+  const isBanner = variant === "banner";
+  return (
+    <section className="relative">
+      <Carousel setApi={setApi} className="w-full" opts={{ align: "start", loop: true }}>
+        <CarouselContent>
+          {slides.map((slide, i) => (
+            <CarouselItem key={i} className="basis-full">
+              <div className={`relative w-full overflow-hidden ${heightClass}`}>
+                {slide.image
+                  ? <img src={slide.image} alt={slide.heading ?? ""} className="absolute inset-0 h-full w-full object-cover" />
+                  : <div className="absolute inset-0 bg-gradient-to-br from-primary/40 to-primary/10" />}
+                {(slide.heading || slide.body || slide.ctaLabel) && (
+                  <>
+                    <div className="absolute inset-0 bg-black/30" />
+                    <div className={`relative z-10 flex h-full flex-col px-6 text-white ${isBanner ? "items-center justify-center text-center" : "items-start justify-end px-8 pb-10 text-left"}`}>
+                      {slide.eyebrow && <p className="text-xs uppercase tracking-[0.2em] opacity-80">{slide.eyebrow}</p>}
+                      {slide.heading && <h2 className={`mt-2 font-bold ${isBanner ? "text-xl md:text-3xl" : "text-2xl md:text-4xl"}`}>{slide.heading}</h2>}
+                      {slide.body && <p className={`mt-2 max-w-lg opacity-90 ${isBanner ? "text-xs md:text-sm" : "text-sm md:text-base"}`}>{slide.body}</p>}
+                      {slide.ctaLabel && (
+                        <Link to={slide.ctaLink ?? "#"} className="mt-4 inline-flex w-fit items-center justify-center rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90">
+                          {slide.ctaLabel}
+                        </Link>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
+            </CarouselItem>
+          ))}
+        </CarouselContent>
+        {showArrows && slides.length > 1 && (
+          <>
+            <CarouselPrevious className="left-3 border-0 bg-black/30 text-white hover:bg-black/40 hover:text-white" />
+            <CarouselNext className="right-3 border-0 bg-black/30 text-white hover:bg-black/40 hover:text-white" />
+          </>
+        )}
+        {showDots && variant !== "thumbnail" && <CarouselDots count={slides.length} light />}
+      </Carousel>
+      {variant === "thumbnail" && slides.length > 1 && <CarouselThumbnails slides={slides} api={api} />}
+    </section>
+  );
+}
+
+function CarouselThumbnails({ slides, api }: { slides: NonNullable<CarouselSection["slides"]>; api?: CarouselApi }) {
+  const [selected, setSelected] = useState(0);
+  useEffect(() => {
+    if (!api) return;
+    const onSelect = () => setSelected(api.selectedScrollSnap());
+    onSelect();
+    api.on("select", onSelect);
+    api.on("reInit", onSelect);
+    return () => { api.off("select", onSelect); };
+  }, [api]);
+  return (
+    <div className="flex gap-2 overflow-x-auto px-4 py-3">
+      {slides.map((slide, i) => (
+        <button
+          key={i}
+          onClick={() => api?.scrollTo(i)}
+          aria-label={`Go to slide ${i + 1}`}
+          className={`h-14 w-14 shrink-0 overflow-hidden rounded-lg border-2 ${i === selected ? "border-primary" : "border-transparent"}`}
+        >
+          {slide.image ? <img src={slide.image} alt="" className="h-full w-full object-cover" /> : <div className="h-full w-full bg-muted" />}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function CarouselFade({ slides, heightClass, showArrows, showDots, autoplay, intervalMs }: {
+  slides: NonNullable<CarouselSection["slides"]>;
+  heightClass: string;
+  showArrows: boolean;
+  showDots: boolean;
+  autoplay: boolean;
+  intervalMs: number;
+}) {
+  const [index, setIndex] = useState(0);
+  useEffect(() => {
+    if (!autoplay || slides.length < 2) return;
+    const id = setInterval(() => setIndex((i) => (i + 1) % slides.length), intervalMs);
+    return () => clearInterval(id);
+  }, [autoplay, intervalMs, slides.length]);
+
+  return (
+    <section className={`relative w-full overflow-hidden ${heightClass}`}>
+      {slides.map((slide, i) => (
+        <div key={i} className={`absolute inset-0 transition-opacity duration-700 ${i === index ? "opacity-100" : "pointer-events-none opacity-0"}`}>
+          {slide.image
+            ? <img src={slide.image} alt={slide.heading ?? ""} className="absolute inset-0 h-full w-full object-cover" />
+            : <div className="absolute inset-0 bg-gradient-to-br from-primary/40 to-primary/10" />}
+          {(slide.heading || slide.body || slide.ctaLabel) && (
+            <>
+              <div className="absolute inset-0 bg-black/30" />
+              <div className="relative z-10 flex h-full flex-col items-start justify-end px-8 pb-10 text-white">
+                {slide.eyebrow && <p className="text-xs uppercase tracking-[0.2em] opacity-80">{slide.eyebrow}</p>}
+                {slide.heading && <h2 className="mt-2 text-2xl font-bold md:text-4xl">{slide.heading}</h2>}
+                {slide.body && <p className="mt-2 max-w-lg text-sm opacity-90 md:text-base">{slide.body}</p>}
+                {slide.ctaLabel && (
+                  <Link to={slide.ctaLink ?? "#"} className="mt-4 inline-flex w-fit items-center justify-center rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90">
+                    {slide.ctaLabel}
+                  </Link>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      ))}
+      {showArrows && slides.length > 1 && (
+        <>
+          <button
+            onClick={() => setIndex((i) => (i - 1 + slides.length) % slides.length)}
+            aria-label="Previous slide"
+            className="absolute left-3 top-1/2 z-20 -translate-y-1/2 rounded-full bg-black/30 p-2 text-white hover:bg-black/40"
+          >
+            <ArrowLeft size={16} />
+          </button>
+          <button
+            onClick={() => setIndex((i) => (i + 1) % slides.length)}
+            aria-label="Next slide"
+            className="absolute right-3 top-1/2 z-20 -translate-y-1/2 rounded-full bg-black/30 p-2 text-white hover:bg-black/40"
+          >
+            <ArrowRight size={16} />
+          </button>
+        </>
+      )}
+      {showDots && slides.length > 1 && (
+        <div className="absolute inset-x-0 bottom-4 z-20 flex items-center justify-center gap-2">
+          {slides.map((_, i) => (
+            <button
+              key={i}
+              onClick={() => setIndex(i)}
+              aria-label={`Go to slide ${i + 1}`}
+              className={`h-1.5 rounded-full transition-all ${i === index ? "w-4 bg-white" : "w-1.5 bg-white/50"}`}
+            />
+          ))}
+        </div>
+      )}
     </section>
   );
 }
@@ -5216,6 +5426,7 @@ export function SectionRenderer({ section, vendorId }: { section: Section; vendo
     switch (section.type) {
       case "announcement": return <Announcement s={section} />;
       case "hero": return <Hero s={section} />;
+      case "carousel": return <CarouselSectionView s={section} />;
       case "featured-products": return <FeaturedProducts s={section} />;
       case "image-text": return <ImageText s={section} />;
       case "rich-text": return <RichText s={section} />;

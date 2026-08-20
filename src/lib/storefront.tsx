@@ -191,6 +191,25 @@ export type HeroSection = SectionBase & {
   ctaLabel?: string; ctaLink?: LinkTarget; align: Align9; height?: "sm" | "md" | "lg";
   ctaLabel2?: string; ctaLink2?: LinkTarget;
 };
+/** A single slide in a standalone Carousel section. */
+export type CarouselSlide = {
+  image?: string;
+  eyebrow?: string;
+  heading?: string;
+  body?: string;
+  ctaLabel?: string;
+  ctaLink?: LinkTarget;
+};
+export type CarouselSection = SectionBase & {
+  type: "carousel";
+  slides: CarouselSlide[];
+  variant?: "banner" | "cards" | "fullwidth" | "thumbnail" | "fade";
+  autoplay?: boolean;
+  autoplaySeconds?: number;
+  showArrows?: boolean;
+  showDots?: boolean;
+  height?: "sm" | "md" | "lg" | "full";
+};
 export type CartBtnLayout = "below" | "right";
 export type ProductCardVariant = "classic" | "minimal" | "overlay" | "horizontal" | "bordered" | "floating" | "editorial" | "chip";
 
@@ -1123,7 +1142,7 @@ export type TeamSection = SectionBase & {
 };
 
 export type Section =
-  | AnnouncementSection | HeroSection | FeaturedProductsSection | ImageTextSection | RichTextSection
+  | AnnouncementSection | HeroSection | CarouselSection | FeaturedProductsSection | ImageTextSection | RichTextSection
   | GallerySection | CollectionListSection | NewsletterSection | CtaBannerSection | TextColumnsSection
   | TestimonialsSection | LogoBarSection | FaqSection | VideoSection | SpacerSection
   | RelatedProductsSection | SearchSection | ProductDetailSection | CheckoutFormSection | ContactFormSection
@@ -1140,6 +1159,7 @@ export type SectionType = Section["type"];
 export const SECTION_LABELS: Record<SectionType, string> = {
   announcement: "Announcement bar",
   hero: "Hero banner",
+  carousel: "Carousel",
   "featured-products": "Featured products",
   "image-text": "Image with text",
   "rich-text": "Rich text",
@@ -1400,6 +1420,13 @@ export function createDefaultSection(type: SectionType): Section {
   switch (type) {
     case "announcement": return { id, type, text: "Free shipping on orders over â‚¦15,000", link: "/shop" };
     case "hero": return { id, type, heading: "New heading", body: "Short supporting copy goes here.", image: hero, ctaLabel: "Shop now", ctaLink: "/shop", align: "bottom-left", height: "md", variant: "overlay" };
+    case "carousel": return {
+      id, type, variant: "banner", autoplay: true, autoplaySeconds: 5, showArrows: true, showDots: true, height: "md",
+      slides: [
+        { heading: "Big summer sale", body: "Up to 40% off storewide", image: hero, ctaLabel: "Shop now", ctaLink: "/shop" },
+        { heading: "New arrivals", body: "Fresh drops every week", eyebrow: "Just in", image: products[0].image, ctaLabel: "Explore", ctaLink: "/shop" },
+      ],
+    };
     case "featured-products": return { id, type, heading: "Featured products", productSlugs: products.slice(0, 3).map((p) => p.slug), columns: 3, variant: "grid" };
     case "image-text": return { id, type, heading: "Tell your story", body: "Pair text with a great image.", image: products[0].image, imageSide: "right", ctaLabel: "Learn more", ctaLink: "/about", variant: "side-by-side" };
     case "rich-text": return { id, type, heading: "About us", body: "Write whatever you'd like here.", align: "center" };
