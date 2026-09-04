@@ -138,12 +138,19 @@ function Checkout() {
           currency: paymentConfig.currency || "NGN",
           customer: { email, name: full_name },
           customizations: { title: `${navbar.brand} Checkout`, description: "Order payment" },
-          callback: async (data: any) => {
+          // A plain function, not async — some gateway SDKs validate this with
+          // a typeof check before invoking it, and handing back a function
+          // that returns a Promise (what `async (data) =>` actually is) has
+          // been known to trip that check in a way a caught-internally error
+          // wouldn't explain (finalize() already catches its own failures).
+          // The async work still happens exactly the same; it's just not
+          // awaited *inside* the callback signature itself.
+          callback: function (data: any) {
             if (data.status === "successful" || data.status === "completed") {
               // Send tx_ref (the string reference we generated) — the backend
               // verifies by tx_ref. transaction_id is a numeric Flutterwave ID
               // that the verify lib doesn't accept directly.
-              await finalize(data.tx_ref ?? String(data.transaction_id), "flutterwave");
+              finalize(data.tx_ref ?? String(data.transaction_id), "flutterwave");
             } else {
               setError("Payment was not completed. Please try again.");
               setSubmitting(false);
@@ -171,8 +178,11 @@ function Checkout() {
           amount: Math.round(total * 100), // Paystack uses subunits (kobo/pesewas/etc)
           currency: paymentConfig.currency || "NGN",
           ref: `ORDER-${Date.now()}`,
-          callback: async (response: any) => {
-            await finalize(response.reference, "paystack");
+          // Plain function, not async — see the matching note on the
+          // Flutterwave callback above. Paystack's own SDK is the one that
+          // was surfacing "callback attribute must be a valid function" here.
+          callback: function (response: any) {
+            finalize(response.reference, "paystack");
           },
           onClose: () => setSubmitting(false),
         });

@@ -1844,17 +1844,31 @@ export function StorefrontProvider({ children }: { children: ReactNode }) {
 
   // Root-level fallback hydration: $.tsx (/@username/*) and index.tsx (custom
   // domain root) already hydrate for their own routes. This covers every
-  // other route on a fresh mount, using whichever vendor scope is already
-  // known — the current hostname for a custom domain, or the last-visited
-  // vendor slug (sessionStorage) for the path-based platform domains.
+  // other route (checkout, product/:slug, /shop, ...), using whichever vendor
+  // scope is already known — the current hostname for a custom domain, or the
+  // last-visited vendor slug (sessionStorage) for the path-based platform
+  // domains.
+  //
+  // This used to run once ([] deps) on this provider's first mount only, on
+  // the assumption that once $.tsx hydrates vendorTpl for a /@username visit,
+  // it simply stays in memory across any later client-side navigation to a
+  // bare route like /checkout. In practice that doesn't hold reliably — the
+  // cart's Checkout button landed on the bundled Atelier default (wrong
+  // navbar, wrong payment provider) until a hard reload forced this effect to
+  // run again. Tracking the pathname in a ref and re-checking on every render
+  // (cheap — it's just a string compare unless the path actually changed)
+  // means this reconciles on every navigation instead of only the first one,
+  // whatever the exact reason vendorTpl didn't survive that specific transition.
+  const lastHydrationPathRef = useRef<string | null>(null);
   useEffect(() => {
     if (typeof window === "undefined") return;
     const path = window.location.pathname;
-    // $.tsx owns hydration for these — leave vendorHydrating as-is (still true)
-    // so it keeps reflecting THAT fetch's real progress; it calls
-    // hydrateVendorTemplate() on both success and failure, which is what
-    // actually resolves it, rather than us short-circuiting it to false here
-    // before the real fetch has even started.
+    if (path === lastHydrationPathRef.current) return;
+    lastHydrationPathRef.current = path;
+    // $.tsx owns hydration for these — leave vendorHydrating as-is so it keeps
+    // reflecting THAT fetch's real progress; it calls hydrateVendorTemplate()
+    // on both success and failure, which is what actually resolves it, rather
+    // than us short-circuiting it to false here before the real fetch starts.
     if (/^\/@[a-z0-9_]+/i.test(path)) return;
     // The admin/template-builder routes are the local editor itself — they must
     // keep reading/writing `active` (the in-progress draft), never a fetched
@@ -1870,6 +1884,7 @@ export function StorefrontProvider({ children }: { children: ReactNode }) {
           return slug ? `${base}/store/${encodeURIComponent(slug)}` : null;
         })();
     if (!url) { setVendorHydrating(false); return; }
+    setVendorHydrating(true);
     let cancelled = false;
     fetch(url)
       .then((r) => r.json())
@@ -1884,8 +1899,7 @@ export function StorefrontProvider({ children }: { children: ReactNode }) {
       .catch(() => {})
       .finally(() => { if (!cancelled) setVendorHydrating(false); });
     return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  });
 
   // Undo / redo history (stored in refs to avoid spurious re-renders)
   const historyRef = useRef<Persisted[]>([]);

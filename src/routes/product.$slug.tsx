@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Bag, BagPlus, Basket3, Cart3, CartPlus, CheckLg, DashLg, Plus, PlusLg, StarFill, Star } from "react-bootstrap-icons";
 import { formatPrice } from "@/lib/products";
@@ -70,12 +70,21 @@ function ProductPage() {
   const { products, getProduct, loading } = useVendorProducts();
   const product = getProduct(slug);
   const { add, setOpen } = useCart();
+  const navigate = useNavigate();
   const [qty, setQty] = useState(1);
   const [added, setAdded] = useState(false);
   const { pages, navbar } = useStorefront();
   const productPageSections = pages.find((p) => p.slug === "/product/:slug")?.sections ?? [];
   const productDetailConfig = productPageSections.find((s) => s.type === "product-detail") as { cartBtnIcon?: CartBtnIcon } | undefined;
   const cartIcon = productDetailConfig?.cartBtnIcon ?? "bag";
+  // This page already renders its own gallery/buy-box UI above (with logic
+  // this generic section-loop can't reproduce - image gallery, reviews,
+  // restock alerts) — a "product-detail" section here would render that whole
+  // block a second time. The default Product page always includes one (see
+  // defaultProductSections()), so this isn't a rare edge case. A configured
+  // "related-products" section takes over from the hardcoded fallback below it.
+  const hasRelatedSection = productPageSections.some((s) => s.type === "related-products");
+  const trailingSections = productPageSections.filter((s) => s.type !== "product-detail");
 
   const [reviews, setReviews] = useState<ReviewData[]>([]);
   const [avgRating, setAvgRating] = useState<number | null>(null);
@@ -186,6 +195,12 @@ function ProductPage() {
     setTimeout(() => setAdded(false), 1500);
   };
 
+  const onBuyNow = () => {
+    if (!canPurchase) return;
+    add(product.slug, qty);
+    navigate({ to: "/checkout" });
+  };
+
   return (
     <>
       <div className="mx-auto max-w-7xl px-6 py-12">
@@ -262,6 +277,14 @@ function ProductPage() {
                         : (<><CartGlyph icon={cartIcon} /> Add to bag — {formatPrice(unitPrice * qty)}</>))}
               </button>
             </div>
+            {canPurchase && (
+              <button
+                onClick={onBuyNow}
+                className="mt-3 inline-flex h-12 w-full items-center justify-center gap-2 rounded-full border border-primary text-sm text-primary transition-colors hover:bg-primary hover:text-primary-foreground"
+              >
+                Proceed to checkout — {formatPrice(unitPrice * qty)}
+              </button>
+            )}
 
             {/* Restock alert for out-of-stock products (excludes preorders, which are purchasable) */}
             {((product as any).inStock === false || (isOOS && !isPreorder)) ? (
@@ -339,7 +362,10 @@ function ProductPage() {
           </section>
         )}
 
-        {related.length > 0 && (
+        {/* Only a fallback for a template with no "related-products" section
+            configured — normally that section (below, vendor-configurable
+            heading/count) is what shows here, so it isn't shown twice. */}
+        {!hasRelatedSection && related.length > 0 && (
           <section className="mt-24">
             <h2 className="font-serif text-3xl">You might also like</h2>
             <div className="mt-8 grid grid-cols-1 gap-x-8 gap-y-12 sm:grid-cols-2 lg:grid-cols-3">
@@ -348,7 +374,7 @@ function ProductPage() {
           </section>
         )}
       </div>
-      {productPageSections.map((s: any) => <SectionRenderer key={s.id} section={s} />)}
+      {trailingSections.map((s: any) => <SectionRenderer key={s.id} section={s} />)}
     </>
   );
 }
