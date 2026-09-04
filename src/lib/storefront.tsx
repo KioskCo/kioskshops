@@ -1860,11 +1860,28 @@ export function StorefrontProvider({ children }: { children: ReactNode }) {
   // means this reconciles on every navigation instead of only the first one,
   // whatever the exact reason vendorTpl didn't survive that specific transition.
   const lastHydrationPathRef = useRef<string | null>(null);
+  // Guards against the exact case that made this slow: navigating quickly
+  // from one bare route to another (e.g. a product page straight to
+  // checkout) before the FIRST page's own fetch has resolved. Without this,
+  // the second page started its own separate fetch and blocked waiting on
+  // THAT one too — two full network round-trips back to back for the same
+  // vendor's data, instead of the second page just inheriting the first
+  // fetch's result when it lands.
+  const hydrationInFlightRef = useRef(false);
+  const lastHydratedAtRef = useRef(0);
   useEffect(() => {
     if (typeof window === "undefined") return;
     const path = window.location.pathname;
     if (path === lastHydrationPathRef.current) return;
     lastHydrationPathRef.current = path;
+    if (hydrationInFlightRef.current) return;
+    // Once we have a template and it was confirmed fresh within the last 15s,
+    // skip re-fetching for yet another bare-route navigation in that window —
+    // browsing product → checkout → back to shop shouldn't hit the API on
+    // every single hop when nothing about the vendor could plausibly have
+    // changed in that time. Still re-checks after 15s so real edits publish
+    // through in a reasonable window, same as the API's own cache headers.
+    if (vendorTpl != null && Date.now() - lastHydratedAtRef.current < 15000) return;
     // $.tsx owns hydration for these — leave vendorHydrating as-is so it keeps
     // reflecting THAT fetch's real progress; it calls hydrateVendorTemplate()
     // on both success and failure, which is what actually resolves it, rather
@@ -1894,6 +1911,7 @@ export function StorefrontProvider({ children }: { children: ReactNode }) {
     const isFirstHydration = vendorTpl == null;
     if (isFirstHydration) setVendorHydrating(true);
     let cancelled = false;
+    hydrationInFlightRef.current = true;
     // Safety net: never leave the header/footer hidden indefinitely if this
     // fetch hangs (slow network, a dropped connection) — worse than briefly
     // showing default chrome is showing none at all.
@@ -1903,13 +1921,17 @@ export function StorefrontProvider({ children }: { children: ReactNode }) {
       .then((json: { success?: boolean; paused?: boolean; templateJson?: string; deliveryFees?: DeliveryFees; vendorId?: string }) => {
         if (cancelled || !json.success || json.paused || !json.templateJson) return;
         setVendorTpl(JSON.parse(json.templateJson) as Template);
+        lastHydratedAtRef.current = Date.now();
         if (json.deliveryFees) setDeliveryFeesState((f) => ({ ...f, ...json.deliveryFees }));
         // Also recover product/cart scope (vendorProducts.tsx, cart.tsx) on the
         // same fresh mount, not just template-derived nav/footer/payment.
         if (json.vendorId) setActiveVendorId(json.vendorId);
       })
       .catch(() => {})
-      .finally(() => { if (!cancelled) { setVendorHydrating(false); if (timeoutId) clearTimeout(timeoutId); } });
+      .finally(() => {
+        hydrationInFlightRef.current = false;
+        if (!cancelled) { setVendorHydrating(false); if (timeoutId) clearTimeout(timeoutId); }
+      });
     return () => { cancelled = true; if (timeoutId) clearTimeout(timeoutId); };
   });
 
