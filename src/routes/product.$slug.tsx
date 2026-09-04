@@ -81,10 +81,18 @@ function ProductPage() {
   // this generic section-loop can't reproduce - image gallery, reviews,
   // restock alerts) — a "product-detail" section here would render that whole
   // block a second time. The default Product page always includes one (see
-  // defaultProductSections()), so this isn't a rare edge case. A configured
-  // "related-products" section takes over from the hardcoded fallback below it.
-  const hasRelatedSection = productPageSections.some((s) => s.type === "related-products");
-  const trailingSections = productPageSections.filter((s) => s.type !== "product-detail");
+  // defaultProductSections()), so this isn't a rare edge case.
+  //
+  // "related-products" is ALSO excluded here, not because it duplicates
+  // anything, but the other direction: its own scoring/matching didn't
+  // reliably show anything on this specific page. Rather than risk related
+  // products silently not showing, this page keeps its own proven working
+  // "You might also like" (same live-inventory source, simple category
+  // match) as the one and only related-products UI — but still reads the
+  // heading/count from the vendor's configured section when there is one,
+  // so it's not just a hardcoded, uneditable block.
+  const relatedConfig = productPageSections.find((s) => s.type === "related-products") as { heading?: string; limit?: number } | undefined;
+  const trailingSections = productPageSections.filter((s) => s.type !== "product-detail" && s.type !== "related-products");
 
   const [reviews, setReviews] = useState<ReviewData[]>([]);
   const [avgRating, setAvgRating] = useState<number | null>(null);
@@ -105,9 +113,17 @@ function ProductPage() {
       .catch(() => null);
   }, [product?.id]);
 
-  const related = product
-    ? products.filter((p) => p.slug !== product.slug && p.category === product.category).slice(0, 3)
-    : [];
+  const relatedLimit = relatedConfig?.limit && relatedConfig.limit > 0 ? relatedConfig.limit : 4;
+  const related = (() => {
+    if (!product) return [];
+    const others = products.filter((p) => p.slug !== product.slug);
+    const sameCategory = others.filter((p) => p.category === product.category);
+    // Same-category first, then pad with anything else so a vendor whose
+    // product is the only one in its category still sees related items
+    // instead of an empty section.
+    const rest = others.filter((p) => p.category !== product.category);
+    return [...sameCategory, ...rest].slice(0, relatedLimit);
+  })();
 
   useEffect(() => {
     if (!product) return;
@@ -362,12 +378,9 @@ function ProductPage() {
           </section>
         )}
 
-        {/* Only a fallback for a template with no "related-products" section
-            configured — normally that section (below, vendor-configurable
-            heading/count) is what shows here, so it isn't shown twice. */}
-        {!hasRelatedSection && related.length > 0 && (
+        {related.length > 0 && (
           <section className="mt-24">
-            <h2 className="font-serif text-3xl">You might also like</h2>
+            <h2 className="font-serif text-3xl">{relatedConfig?.heading || "You might also like"}</h2>
             <div className="mt-8 grid grid-cols-1 gap-x-8 gap-y-12 sm:grid-cols-2 lg:grid-cols-3">
               {related.map((p) => <ProductCard key={p.slug} product={p as any} />)}
             </div>

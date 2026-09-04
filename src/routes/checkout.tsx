@@ -1,11 +1,11 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useLocation, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { CheckLg, CreditCard2Front, ArrowRepeat } from "react-bootstrap-icons";
 import { useCart } from "@/lib/cart";
 import { formatPrice, NIGERIAN_STATES } from "@/lib/products";
 import { placeOrder } from "@/lib/checkout.functions";
-import { useStorefront } from "@/lib/storefront";
+import { useStorefront, isPlatformHost, getPersistedVendorSlug } from "@/lib/storefront";
 
 export const Route = createFileRoute("/checkout")({
   head: () => ({ meta: [{ title: "Checkout" }] }),
@@ -46,6 +46,15 @@ function Checkout() {
   const navigate = useNavigate();
   const formRef = useRef<HTMLFormElement>(null);
   const provider = paymentConfig.provider === "both" ? selectedProvider : paymentConfig.provider;
+  // Same derivation as the navbar logo link — the vendor's own home, not the
+  // bare platform default. /checkout is a top-level route (not nested under
+  // /@username), so the URL itself may not carry the prefix even though this
+  // IS a path-based vendor's checkout; fall back to the persisted slug.
+  const { pathname } = useLocation();
+  const vendorPrefix = pathname.match(/^\/@[a-z0-9_]+/i)?.[0];
+  const persistedSlug = typeof window !== "undefined" && isPlatformHost(window.location.hostname) ? getPersistedVendorSlug() : null;
+  const shopHome = vendorPrefix ?? (persistedSlug ? `/@${persistedSlug}` : "/");
+  const [redirectIn, setRedirectIn] = useState<number | null>(null);
   // Location-aware shipping: Lagos = local rate, other states = inter-state,
   // using the vendor's own configured rates. The server re-computes authoritatively.
   const shipping =
@@ -66,6 +75,27 @@ function Checkout() {
     ((import.meta.env as any)["VITE_VENDOR_ID"] as string | undefined) ||
     "";
   const incomingRef = sessionStorage.getItem("kiosk_referral_code") ?? "";
+
+  // Auto-redirect to the vendor's own home a few seconds after a confirmed
+  // order — counts down visibly (not a silent jump) and is cancelled if the
+  // buyer has already navigated away via Track order / Back to home.
+  useEffect(() => {
+    if (!done) { setRedirectIn(null); return; }
+    setRedirectIn(6);
+    const id = setInterval(() => {
+      setRedirectIn((n) => {
+        if (n == null) return null;
+        if (n <= 1) {
+          clearInterval(id);
+          navigate({ to: shopHome });
+          return 0;
+        }
+        return n - 1;
+      });
+    }, 1000);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [done]);
 
   const applyDiscount = async () => {
     if (!discountCode.trim()) return;
@@ -245,7 +275,7 @@ function Checkout() {
 
         {/* Share & Earn — show only when vendor has referrals enabled */}
         {referrals.enabled && done.referralCode && (() => {
-          const refUrl = `${window.location.origin}/?ref=${done.referralCode}`;
+          const refUrl = `${window.location.origin}${shopHome}?ref=${done.referralCode}`;
           const rewardLabel = referrals.rewardLabel ?? "10% off your next order";
           return (
             <div className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 px-6 py-5 text-left">
@@ -276,9 +306,12 @@ function Checkout() {
           >
             Track your order
           </Link>
-          <button onClick={() => navigate({ to: "/" })} className="text-sm text-muted-foreground hover:text-foreground underline">
+          <button onClick={() => navigate({ to: shopHome })} className="text-sm text-muted-foreground hover:text-foreground underline">
             Back to home
           </button>
+          {redirectIn != null && redirectIn > 0 && (
+            <p className="text-xs text-muted-foreground">Taking you back to the shop in {redirectIn}s…</p>
+          )}
         </div>
       </div>
     );

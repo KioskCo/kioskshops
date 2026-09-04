@@ -1884,8 +1884,20 @@ export function StorefrontProvider({ children }: { children: ReactNode }) {
           return slug ? `${base}/store/${encodeURIComponent(slug)}` : null;
         })();
     if (!url) { setVendorHydrating(false); return; }
-    setVendorHydrating(true);
+    // Only block rendering (skeleton header, hidden footer) the very first
+    // time — before any vendorTpl exists at all. Re-checking on a LATER
+    // navigation (we already have a hydrated template from a moment ago) is
+    // just a background correctness refresh; flipping vendorHydrating back to
+    // true for that made the header/footer flicker away and reappear on every
+    // single bare-route navigation, which is worse than the stale-briefly
+    // problem it was meant to fix.
+    const isFirstHydration = vendorTpl == null;
+    if (isFirstHydration) setVendorHydrating(true);
     let cancelled = false;
+    // Safety net: never leave the header/footer hidden indefinitely if this
+    // fetch hangs (slow network, a dropped connection) — worse than briefly
+    // showing default chrome is showing none at all.
+    const timeoutId = isFirstHydration ? setTimeout(() => { if (!cancelled) setVendorHydrating(false); }, 4000) : null;
     fetch(url)
       .then((r) => r.json())
       .then((json: { success?: boolean; paused?: boolean; templateJson?: string; deliveryFees?: DeliveryFees; vendorId?: string }) => {
@@ -1897,8 +1909,8 @@ export function StorefrontProvider({ children }: { children: ReactNode }) {
         if (json.vendorId) setActiveVendorId(json.vendorId);
       })
       .catch(() => {})
-      .finally(() => { if (!cancelled) setVendorHydrating(false); });
-    return () => { cancelled = true; };
+      .finally(() => { if (!cancelled) { setVendorHydrating(false); if (timeoutId) clearTimeout(timeoutId); } });
+    return () => { cancelled = true; if (timeoutId) clearTimeout(timeoutId); };
   });
 
   // Undo / redo history (stored in refs to avoid spurious re-renders)
