@@ -81,6 +81,9 @@ export type Align9 =
   | "bottom-left" | "bottom-center" | "bottom-right";
 
 export type CartBtnStyle = "plus" | "cart" | "text" | "plus-text" | "cart-text";
+/** Which glyph shows on the add-to-cart button — independent of cartBtnStyle
+ * (which controls layout: icon-only vs icon+text vs text-only). */
+export type CartBtnIcon = "cart" | "cart-plus" | "bag" | "bag-plus" | "basket" | "plus";
 export type SectionAnimation = "none" | "fadeIn" | "slideUp" | "slideLeft" | "slideRight" | "zoomIn";
 
 export type SectionBase = {
@@ -222,6 +225,7 @@ export type FeaturedProductsSection = SectionBase & {
   sourceMode?: "manual" | "inventory";
   cardVariant?: ProductCardVariant;
   cartBtnStyle?: CartBtnStyle;
+  cartBtnIcon?: CartBtnIcon;
   cartBtnBg?: string;
   cartBtnColor?: string;
   cartBtnLabel?: string;
@@ -238,6 +242,7 @@ export type GallerySection = SectionBase & {
 };
 export type CollectionListSection = SectionBase & {
   type: "collection-list"; heading: string; items: { label: string; image: string; link: LinkTarget }[];
+  useLiveCategories?: boolean;
 };
 export type NewsletterSection = SectionBase & {
   type: "newsletter"; heading: string; body?: string; buttonLabel: string;
@@ -270,6 +275,7 @@ export type ProductDetailSection = SectionBase & {
   type: "product-detail";
   productSlug: string;
   extraImages: string[];
+  cartBtnIcon?: CartBtnIcon;
 };
 export type CheckoutFormSection = SectionBase & {
   type: "checkout-form";
@@ -289,6 +295,7 @@ export type ShopGridSection = SectionBase & {
   pageSize?: number;
   cardVariant?: ProductCardVariant;
   cartBtnStyle?: CartBtnStyle;
+  cartBtnIcon?: CartBtnIcon;
   cartBtnBg?: string;
   cartBtnColor?: string;
   cartBtnLabel?: string;

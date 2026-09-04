@@ -1,8 +1,22 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { BagPlus, Cart3, Plus } from "react-bootstrap-icons";
+import { Bag, BagPlus, Basket3, Cart3, CartPlus, Plus } from "react-bootstrap-icons";
 import { formatPrice, type Product } from "@/lib/products";
-import { useDesignTokens, HEADING_FONT_META, type CartBtnStyle, type ProductCardVariant } from "@/lib/storefront";
+import { useDesignTokens, HEADING_FONT_META, type CartBtnStyle, type CartBtnIcon, type ProductCardVariant } from "@/lib/storefront";
+
+/** Resolves the configurable icon glyph — falls back to each style's original
+ * default icon (unchanged behavior) when no icon override is set. */
+function CartIcon({ icon, fallback, size }: { icon?: CartBtnIcon; fallback: CartBtnIcon; size: number }) {
+  switch (icon ?? fallback) {
+    case "plus": return <Plus size={size} />;
+    case "cart": return <Cart3 size={size} />;
+    case "cart-plus": return <CartPlus size={size} />;
+    case "bag": return <Bag size={size} />;
+    case "basket": return <Basket3 size={size} />;
+    case "bag-plus":
+    default: return <BagPlus size={size} />;
+  }
+}
 
 function useSaleActive(saleEndsAt?: string | null): boolean {
   const [active, setActive] = useState(() => !!saleEndsAt && new Date(saleEndsAt) > new Date());
@@ -19,9 +33,9 @@ const radiusMap: Record<string, string> = {
 };
 
 function CartButton({
-  style, label, bg, color, btnRadius, onClick,
+  style, icon, label, bg, color, btnRadius, onClick,
 }: {
-  style?: CartBtnStyle; label?: string; bg?: string; color?: string; btnRadius: string;
+  style?: CartBtnStyle; icon?: CartBtnIcon; label?: string; bg?: string; color?: string; btnRadius: string;
   onClick: (e: React.MouseEvent) => void;
 }) {
   if (!style || style === "text") {
@@ -38,7 +52,7 @@ function CartButton({
       <button onClick={onClick} aria-label="Add to cart"
         className={`shrink-0 h-8 w-8 flex items-center justify-center bg-primary text-primary-foreground transition-opacity hover:opacity-80 ${btnRadius}`}
         style={{ backgroundColor: bg, color }}>
-        <Plus size={16} />
+        <CartIcon icon={icon} fallback="plus" size={16} />
       </button>
     );
   }
@@ -47,7 +61,7 @@ function CartButton({
       <button onClick={onClick} aria-label="Add to cart"
         className={`shrink-0 h-8 w-8 flex items-center justify-center bg-primary text-primary-foreground transition-opacity hover:opacity-80 ${btnRadius}`}
         style={{ backgroundColor: bg, color }}>
-        <Cart3 size={15} />
+        <CartIcon icon={icon} fallback="cart" size={15} />
       </button>
     );
   }
@@ -56,7 +70,7 @@ function CartButton({
       <button onClick={onClick} aria-label={label ?? "Add to cart"}
         className={`shrink-0 h-8 px-3 flex items-center gap-1.5 text-xs font-medium bg-primary text-primary-foreground transition-opacity hover:opacity-80 ${btnRadius}`}
         style={{ backgroundColor: bg, color }}>
-        <Plus size={14} />{label ?? "Add to cart"}
+        <CartIcon icon={icon} fallback="plus" size={14} />{label ?? "Add to cart"}
       </button>
     );
   }
@@ -64,7 +78,7 @@ function CartButton({
     <button onClick={onClick} aria-label={label ?? "Add to cart"}
       className={`shrink-0 h-8 px-3 flex items-center gap-1.5 text-xs font-medium bg-primary text-primary-foreground transition-opacity hover:opacity-80 ${btnRadius}`}
       style={{ backgroundColor: bg, color }}>
-      <BagPlus size={14} />{label ?? "Add to cart"}
+      <CartIcon icon={icon} fallback="bag-plus" size={14} />{label ?? "Add to cart"}
     </button>
   );
 }
@@ -77,6 +91,7 @@ interface CardInnerProps {
   imageStyle?: React.CSSProperties;
   onAddToCart?: (product: Product) => void;
   cartBtnStyle?: CartBtnStyle;
+  cartBtnIcon?: CartBtnIcon;
   cartBtnBg?: string;
   cartBtnColor?: string;
   cartBtnLabel?: string;
@@ -130,7 +145,7 @@ function OOSOverlay() {
 
 // ── Variant: classic ──────────────────────────────────────────────────────────
 // Image top (portrait or square), name + category + price + cart below
-function ClassicInner({ product, radius, btnRadius, isPortrait, saleActive, isPreorder, releaseLabel, displayPrice, isOOS, hoverImage, hMeta, titleStyle, priceStyle, imageStyle, onAddToCart, cartBtnStyle, cartBtnBg, cartBtnColor, cartBtnLabel, cartBtnLayout, handleAddToCart }: CardInnerProps) {
+function ClassicInner({ product, radius, btnRadius, isPortrait, saleActive, isPreorder, releaseLabel, displayPrice, isOOS, hoverImage, hMeta, titleStyle, priceStyle, imageStyle, onAddToCart, cartBtnStyle, cartBtnIcon, cartBtnBg, cartBtnColor, cartBtnLabel, cartBtnLayout, handleAddToCart }: CardInnerProps) {
   return (
     <>
       <div className={`relative overflow-hidden bg-secondary ${radius} ${isPortrait ? "aspect-[3/4]" : "aspect-square"}`}>
@@ -156,7 +171,7 @@ function ClassicInner({ product, radius, btnRadius, isPortrait, saleActive, isPr
             </div>
             {releaseLabel && <p className="text-[11px] text-indigo-600">{releaseLabel}</p>}
           </div>
-          <CartButton style={cartBtnStyle} label={cartBtnLabel} bg={cartBtnBg} color={cartBtnColor} btnRadius={btnRadius} onClick={handleAddToCart} />
+          <CartButton style={cartBtnStyle} icon={cartBtnIcon} label={cartBtnLabel} bg={cartBtnBg} color={cartBtnColor} btnRadius={btnRadius} onClick={handleAddToCart} />
         </div>
       ) : (
         <div className="mt-3 space-y-1">
@@ -172,7 +187,7 @@ function ClassicInner({ product, radius, btnRadius, isPortrait, saleActive, isPr
           {releaseLabel && <p className="text-[11px] font-medium text-indigo-600">{releaseLabel}</p>}
           {onAddToCart && cartBtnStyle && !isOOS && (
             <div className="pt-1.5">
-              <CartButton style={cartBtnStyle} label={cartBtnLabel} bg={cartBtnBg} color={cartBtnColor} btnRadius={btnRadius} onClick={handleAddToCart} />
+              <CartButton style={cartBtnStyle} icon={cartBtnIcon} label={cartBtnLabel} bg={cartBtnBg} color={cartBtnColor} btnRadius={btnRadius} onClick={handleAddToCart} />
             </div>
           )}
         </div>
@@ -212,7 +227,7 @@ function MinimalInner({ product, radius, isPortrait, saleActive, isPreorder, rel
 
 // ── Variant: overlay ─────────────────────────────────────────────────────────
 // Image fills full card, gradient overlay at bottom, text + cart inside
-function OverlayInner({ product, radius, isPortrait, saleActive, isPreorder, displayPrice, isOOS, hoverImage, hMeta, titleStyle, priceStyle, onAddToCart, cartBtnStyle, cartBtnBg, cartBtnColor, cartBtnLabel, btnRadius, handleAddToCart }: CardInnerProps) {
+function OverlayInner({ product, radius, isPortrait, saleActive, isPreorder, displayPrice, isOOS, hoverImage, hMeta, titleStyle, priceStyle, onAddToCart, cartBtnStyle, cartBtnIcon, cartBtnBg, cartBtnColor, cartBtnLabel, btnRadius, handleAddToCart }: CardInnerProps) {
   return (
     <div className={`relative overflow-hidden ${radius} ${isPortrait ? "aspect-[3/4]" : "aspect-square"}`}>
       <img src={product.image} alt={product.name} loading="lazy" decoding="async"
@@ -240,7 +255,7 @@ function OverlayInner({ product, radius, isPortrait, saleActive, isPreorder, dis
             {isPreorder && <p className="text-[11px] font-medium text-white/80">Preorder — payable now, ships on release</p>}
           </div>
           {onAddToCart && cartBtnStyle && !isOOS && (
-            <CartButton style={cartBtnStyle} label={cartBtnLabel} bg={cartBtnBg} color={cartBtnColor} btnRadius={btnRadius} onClick={handleAddToCart} />
+            <CartButton style={cartBtnStyle} icon={cartBtnIcon} label={cartBtnLabel} bg={cartBtnBg} color={cartBtnColor} btnRadius={btnRadius} onClick={handleAddToCart} />
           )}
         </div>
       </div>
@@ -250,7 +265,7 @@ function OverlayInner({ product, radius, isPortrait, saleActive, isPreorder, dis
 
 // ── Variant: horizontal ───────────────────────────────────────────────────────
 // Image left 40%, text right 60% — good for list/editorial views
-function HorizontalInner({ product, radius, saleActive, isPreorder, releaseLabel, displayPrice, isOOS, hMeta, titleStyle, priceStyle, imageStyle, onAddToCart, cartBtnStyle, cartBtnBg, cartBtnColor, cartBtnLabel, btnRadius, handleAddToCart }: CardInnerProps) {
+function HorizontalInner({ product, radius, saleActive, isPreorder, releaseLabel, displayPrice, isOOS, hMeta, titleStyle, priceStyle, imageStyle, onAddToCart, cartBtnStyle, cartBtnIcon, cartBtnBg, cartBtnColor, cartBtnLabel, btnRadius, handleAddToCart }: CardInnerProps) {
   return (
     <div className="flex gap-3.5 items-start">
       <div className={`relative shrink-0 w-28 aspect-square overflow-hidden bg-secondary ${radius}`}>
@@ -272,7 +287,7 @@ function HorizontalInner({ product, radius, saleActive, isPreorder, releaseLabel
         {isOOS && !isPreorder ? (
           <span className="inline-block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Out of stock</span>
         ) : onAddToCart && cartBtnStyle ? (
-          <CartButton style={cartBtnStyle} label={cartBtnLabel} bg={cartBtnBg} color={cartBtnColor} btnRadius={btnRadius} onClick={handleAddToCart} />
+          <CartButton style={cartBtnStyle} icon={cartBtnIcon} label={cartBtnLabel} bg={cartBtnBg} color={cartBtnColor} btnRadius={btnRadius} onClick={handleAddToCart} />
         ) : null}
       </div>
     </div>
@@ -281,7 +296,7 @@ function HorizontalInner({ product, radius, saleActive, isPreorder, releaseLabel
 
 // ── Variant: bordered ────────────────────────────────────────────────────────
 // Card box with border + subtle shadow, image top, padded text section below
-function BorderedInner({ product, radius, btnRadius, isPortrait, saleActive, isPreorder, releaseLabel, displayPrice, isOOS, hoverImage, hMeta, titleStyle, priceStyle, imageStyle, onAddToCart, cartBtnStyle, cartBtnBg, cartBtnColor, cartBtnLabel, handleAddToCart }: CardInnerProps) {
+function BorderedInner({ product, radius, btnRadius, isPortrait, saleActive, isPreorder, releaseLabel, displayPrice, isOOS, hoverImage, hMeta, titleStyle, priceStyle, imageStyle, onAddToCart, cartBtnStyle, cartBtnIcon, cartBtnBg, cartBtnColor, cartBtnLabel, handleAddToCart }: CardInnerProps) {
   return (
     <div className={`border border-border bg-card shadow-sm overflow-hidden transition-shadow duration-300 group-hover:shadow-md ${radius}`}>
       <div className={`relative overflow-hidden bg-secondary ${isPortrait ? "aspect-[3/4]" : "aspect-square"}`}>
@@ -308,7 +323,7 @@ function BorderedInner({ product, radius, btnRadius, isPortrait, saleActive, isP
         {releaseLabel && <p className="text-[11px] font-medium text-indigo-600">{releaseLabel}</p>}
         {onAddToCart && cartBtnStyle && !isOOS && (
           <div className="pt-1">
-            <CartButton style={cartBtnStyle} label={cartBtnLabel} bg={cartBtnBg} color={cartBtnColor} btnRadius={btnRadius} onClick={handleAddToCart} />
+            <CartButton style={cartBtnStyle} icon={cartBtnIcon} label={cartBtnLabel} bg={cartBtnBg} color={cartBtnColor} btnRadius={btnRadius} onClick={handleAddToCart} />
           </div>
         )}
       </div>
@@ -318,7 +333,7 @@ function BorderedInner({ product, radius, btnRadius, isPortrait, saleActive, isP
 
 // ── Variant: floating ────────────────────────────────────────────────────────
 // Full-width image, strong shadow card below — boutique/luxury feel
-function FloatingInner({ product, radius, btnRadius, isPortrait, saleActive, isPreorder, releaseLabel, displayPrice, isOOS, hoverImage, hMeta, titleStyle, priceStyle, imageStyle, onAddToCart, cartBtnStyle, cartBtnBg, cartBtnColor, cartBtnLabel, handleAddToCart }: CardInnerProps) {
+function FloatingInner({ product, radius, btnRadius, isPortrait, saleActive, isPreorder, releaseLabel, displayPrice, isOOS, hoverImage, hMeta, titleStyle, priceStyle, imageStyle, onAddToCart, cartBtnStyle, cartBtnIcon, cartBtnBg, cartBtnColor, cartBtnLabel, handleAddToCart }: CardInnerProps) {
   return (
     <>
       <div className={`relative overflow-hidden bg-secondary ${radius} ${isPortrait ? "aspect-[3/4]" : "aspect-square"}`}>
@@ -345,7 +360,7 @@ function FloatingInner({ product, radius, btnRadius, isPortrait, saleActive, isP
         {releaseLabel && <p className="text-[11px] font-medium text-indigo-600">{releaseLabel}</p>}
         {onAddToCart && cartBtnStyle && !isOOS && (
           <div className="pt-0.5">
-            <CartButton style={cartBtnStyle} label={cartBtnLabel} bg={cartBtnBg} color={cartBtnColor} btnRadius={btnRadius} onClick={handleAddToCart} />
+            <CartButton style={cartBtnStyle} icon={cartBtnIcon} label={cartBtnLabel} bg={cartBtnBg} color={cartBtnColor} btnRadius={btnRadius} onClick={handleAddToCart} />
           </div>
         )}
       </div>
@@ -355,7 +370,7 @@ function FloatingInner({ product, radius, btnRadius, isPortrait, saleActive, isP
 
 // ── Variant: editorial ───────────────────────────────────────────────────────
 // Wide landscape image (4:3), large bold name, minimal text — magazine feel
-function EditorialInner({ product, radius, btnRadius, saleActive, isPreorder, displayPrice, isOOS, hoverImage, hMeta, titleStyle, priceStyle, imageStyle, onAddToCart, cartBtnStyle, cartBtnBg, cartBtnColor, cartBtnLabel, handleAddToCart }: CardInnerProps) {
+function EditorialInner({ product, radius, btnRadius, saleActive, isPreorder, displayPrice, isOOS, hoverImage, hMeta, titleStyle, priceStyle, imageStyle, onAddToCart, cartBtnStyle, cartBtnIcon, cartBtnBg, cartBtnColor, cartBtnLabel, handleAddToCart }: CardInnerProps) {
   return (
     <div className={`relative overflow-hidden ${radius} aspect-[4/3]`}>
       <img src={product.image} alt={product.name} loading="lazy" decoding="async"
@@ -383,7 +398,7 @@ function EditorialInner({ product, radius, btnRadius, saleActive, isPreorder, di
             {isPreorder && <p className="text-[11px] font-medium text-white/80">Preorder now</p>}
             {onAddToCart && cartBtnStyle && !isOOS && (
               <div className="mt-1.5">
-                <CartButton style={cartBtnStyle} label={cartBtnLabel} bg={cartBtnBg} color={cartBtnColor} btnRadius={btnRadius} onClick={handleAddToCart} />
+                <CartButton style={cartBtnStyle} icon={cartBtnIcon} label={cartBtnLabel} bg={cartBtnBg} color={cartBtnColor} btnRadius={btnRadius} onClick={handleAddToCart} />
               </div>
             )}
           </div>
@@ -430,6 +445,7 @@ export function ProductCard({
   imageStyle,
   onAddToCart,
   cartBtnStyle,
+  cartBtnIcon,
   cartBtnBg,
   cartBtnColor,
   cartBtnLabel,
@@ -444,6 +460,7 @@ export function ProductCard({
   imageStyle?: React.CSSProperties;
   onAddToCart?: (product: Product) => void;
   cartBtnStyle?: CartBtnStyle;
+  cartBtnIcon?: CartBtnIcon;
   cartBtnBg?: string;
   cartBtnColor?: string;
   cartBtnLabel?: string;
@@ -474,7 +491,7 @@ export function ProductCard({
 
   const innerProps: CardInnerProps = {
     product, cardStyle, titleStyle, priceStyle, imageStyle,
-    onAddToCart, cartBtnStyle, cartBtnBg, cartBtnColor, cartBtnLabel, cartBtnLayout,
+    onAddToCart, cartBtnStyle, cartBtnIcon, cartBtnBg, cartBtnColor, cartBtnLabel, cartBtnLayout,
     radius, btnRadius, isPortrait, saleActive, isPreorder, releaseLabel, displayPrice, isOOS, hoverImage, hMeta,
     handleAddToCart,
   };

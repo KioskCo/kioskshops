@@ -87,9 +87,18 @@ function CustomDomainView({ domain }: { domain: string }) {
       })
       .catch(() => { if (!cancelled) setStatus("error"); });
 
+    // NOT clearing the hydrated template here. This component only renders
+    // for the bare "/" route — the buyer navigating anywhere else on the SAME
+    // custom domain (checkout, a product page, /shop, ...) unmounts it, which
+    // ran this cleanup on every single navigation and wiped the vendor's
+    // template back to the bundled Atelier default right as they left the
+    // home page. That's exactly why checkout/navbar/product pages looked like
+    // the wrong store: the real vendor data had just been cleared out from
+    // under them. The template only needs to reset if the buyer switches to a
+    // genuinely different vendor, which the effect's own next run (on `domain`
+    // changing) already re-hydrates correctly.
     return () => {
       cancelled = true;
-      actionsRef.current.hydrateVendorTemplate(null);
     };
   }, [domain]);
 

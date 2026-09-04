@@ -1185,6 +1185,7 @@ function FeaturedProducts({ s }: { s: FeaturedProductsSection }) {
   const cartProps = s.cartBtnStyle ? {
     onAddToCart: (p: any) => { add(p.slug, 1); },
     cartBtnStyle: s.cartBtnStyle,
+    cartBtnIcon: s.cartBtnIcon,
     cartBtnBg: s.cartBtnBg,
     cartBtnColor: s.cartBtnColor,
     cartBtnLabel: s.cartBtnLabel,
@@ -1438,7 +1439,28 @@ function CollectionList({ s }: { s: CollectionListSection }) {
   const cardRadiusCls = cardRadiusStyle ? "" : st.cardRadius;
   const isScroller = (s as any).variant === "scroller";
 
-  const item = (it: (typeof s.items)[number], i: number, className: string) => {
+  // "Use live inventory categories" was a real toggle in the editor with no
+  // effect here — this component always rendered the manually-configured
+  // items, whether the toggle was on or not. When it's on, build one card per
+  // actual product category, using that category's first product photo.
+  const { products: vendorProducts } = useVendorProducts();
+  const liveItems = (() => {
+    if (!s.useLiveCategories) return null;
+    const byCategory = new Map<string, string>();
+    for (const p of vendorProducts) {
+      if (p.category && !byCategory.has(p.category)) byCategory.set(p.category, p.image);
+    }
+    return Array.from(byCategory.entries()).map(([label, image]) => ({
+      label,
+      image,
+      link: `/shop?category=${encodeURIComponent(label)}`,
+    }));
+  })();
+  const items = liveItems ?? s.items;
+
+  if (s.useLiveCategories && items.length === 0) return null;
+
+  const item = (it: (typeof items)[number], i: number, className: string) => {
     const [linkPath, linkQs] = it.link.split("?");
     const linkSearch = linkQs ? Object.fromEntries(new URLSearchParams(linkQs)) : undefined;
     return (
@@ -1456,7 +1478,7 @@ function CollectionList({ s }: { s: CollectionListSection }) {
       <section className="mx-auto max-w-7xl">
         <h2 className={`mb-8 px-6 text-center ${st.h2} ${st.hFont}`} style={st.headingStyle}>{s.heading}</h2>
         <div className="flex snap-x snap-mandatory gap-4 overflow-x-auto px-6 pb-2">
-          {s.items.map((it, i) => item(it, i, "w-36 shrink-0 snap-start sm:w-44"))}
+          {items.map((it, i) => item(it, i, "w-36 shrink-0 snap-start sm:w-44"))}
         </div>
       </section>
     );
@@ -1466,7 +1488,7 @@ function CollectionList({ s }: { s: CollectionListSection }) {
     <section className="mx-auto max-w-7xl px-6">
       <h2 className={`mb-8 text-center ${st.h2} ${st.hFont}`} style={st.headingStyle}>{s.heading}</h2>
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-        {s.items.map((it, i) => item(it, i, ""))}
+        {items.map((it, i) => item(it, i, ""))}
       </div>
     </section>
   );
@@ -2301,6 +2323,7 @@ function ShopGrid({ s }: { s: ShopGridSection }) {
   const cartProps = s.cartBtnStyle ? {
     onAddToCart: (pr: any) => addToCartFn(pr.slug, 1),
     cartBtnStyle: s.cartBtnStyle,
+    cartBtnIcon: s.cartBtnIcon,
     cartBtnBg: s.cartBtnBg,
     cartBtnColor: s.cartBtnColor,
     cartBtnLabel: s.cartBtnLabel,

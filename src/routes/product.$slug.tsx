@@ -1,13 +1,25 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { CheckLg, DashLg, PlusLg, StarFill, Star } from "react-bootstrap-icons";
+import { Bag, BagPlus, Basket3, Cart3, CartPlus, CheckLg, DashLg, Plus, PlusLg, StarFill, Star } from "react-bootstrap-icons";
 import { formatPrice } from "@/lib/products";
 import { useCart } from "@/lib/cart";
 import { ProductCard } from "@/components/product-card";
-import { useStorefront } from "@/lib/storefront";
+import { useStorefront, type CartBtnIcon } from "@/lib/storefront";
 import { useVendorProducts, effectivePrice } from "@/lib/vendorProducts";
 import { SectionRenderer } from "@/components/sections";
 import { setMetaProperty, setMeta, injectJsonLd, setCanonical } from "@/lib/seo";
+
+function CartGlyph({ icon }: { icon: CartBtnIcon }) {
+  switch (icon) {
+    case "plus": return <Plus style={{ fontSize: 16 }} />;
+    case "cart": return <Cart3 style={{ fontSize: 15 }} />;
+    case "cart-plus": return <CartPlus style={{ fontSize: 15 }} />;
+    case "bag-plus": return <BagPlus style={{ fontSize: 15 }} />;
+    case "basket": return <Basket3 style={{ fontSize: 15 }} />;
+    case "bag":
+    default: return <Bag style={{ fontSize: 15 }} />;
+  }
+}
 
 export const Route = createFileRoute("/product/$slug")({
   // Loader just surfaces the slug — actual product lookup is in the component
@@ -62,6 +74,8 @@ function ProductPage() {
   const [added, setAdded] = useState(false);
   const { pages, navbar } = useStorefront();
   const productPageSections = pages.find((p) => p.slug === "/product/:slug")?.sections ?? [];
+  const productDetailConfig = productPageSections.find((s) => s.type === "product-detail") as { cartBtnIcon?: CartBtnIcon } | undefined;
+  const cartIcon = productDetailConfig?.cartBtnIcon ?? "bag";
 
   const [reviews, setReviews] = useState<ReviewData[]>([]);
   const [avgRating, setAvgRating] = useState<number | null>(null);
@@ -239,7 +253,13 @@ function ProductPage() {
                 disabled={!canPurchase}
                 className={`inline-flex h-12 flex-1 items-center justify-center gap-2 rounded-full px-6 text-sm transition-opacity ${!canPurchase ? "bg-secondary text-muted-foreground cursor-not-allowed" : "bg-primary text-primary-foreground hover:opacity-90"}`}
               >
-                {!canPurchase ? "Out of Stock" : isPreorder ? (added ? (<><CheckLg style={{ fontSize: 16 }} /> Added</>) : `Preorder — ${formatPrice(unitPrice * qty)}`) : added ? (<><CheckLg style={{ fontSize: 16 }} /> Added</>) : `Add to bag — ${formatPrice(unitPrice * qty)}`}
+                {!canPurchase
+                  ? "Out of Stock"
+                  : isPreorder
+                    ? (added ? (<><CheckLg style={{ fontSize: 16 }} /> Added</>) : `Preorder — ${formatPrice(unitPrice * qty)}`)
+                    : (added
+                        ? (<><CheckLg style={{ fontSize: 16 }} /> Added</>)
+                        : (<><CartGlyph icon={cartIcon} /> Add to bag — {formatPrice(unitPrice * qty)}</>))}
               </button>
             </div>
 

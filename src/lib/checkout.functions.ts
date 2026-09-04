@@ -60,9 +60,14 @@ export const placeOrder = createServerFn({ method: "POST" })
     });
 
     if (!resp.ok) {
-      const body = await resp.json().catch(() => ({}));
+      const body = await resp.json().catch(() => ({})) as { error?: string };
       console.error("placeOrder failed:", body);
-      throw new Error("Could not place your order. Please try again.");
+      // Surface the server's actual reason (e.g. "Payment could not be verified",
+      // "Invalid product in order") instead of a blanket generic message — a
+      // buyer/vendor seeing only "could not place order" every time has no way
+      // to tell a real payment-gateway misconfiguration apart from a transient
+      // error, which is exactly what made this hard to diagnose.
+      throw new Error(body.error || "Could not place your order. Please try again.");
     }
 
     const result = await resp.json() as { success: boolean; data: { orderNumber: string; total: number; escrowPin?: string; referralCode?: string } };
