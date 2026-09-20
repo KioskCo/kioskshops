@@ -173,7 +173,10 @@ function PwaSetup() {
       appleIcon.rel = "apple-touch-icon";
       document.head.appendChild(appleIcon);
     }
-    appleIcon.href = logoImage ?? "/kiosk-favicon.png";
+    // `||`, not `??` — logoImage is an empty string (not null/undefined) when
+    // no logo has been set, which `??` treats as already-present and would
+    // point the icon at a blank href instead of falling back.
+    appleIcon.href = logoImage || "/kiosk-favicon.png";
 
     // Update theme-color meta tag with store accent
     let themeMeta = document.querySelector("meta[name='theme-color']") as HTMLMetaElement | null;

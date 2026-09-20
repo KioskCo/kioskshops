@@ -2300,7 +2300,18 @@ function ShopGrid({ s }: { s: ShopGridSection }) {
   const st = useSectionStyles();
   const { products: vendorProducts, loading } = useVendorProducts();
   const { add: addToCartFn } = useCart();
-  const [cat, setCat] = useState("All");
+  // A collection-list card links to /shop?category=X expecting this section
+  // to land already filtered — this section had its own, entirely separate
+  // "All" default with no idea the URL carried a category at all, so every
+  // one of those links just showed the unfiltered full catalog instead.
+  const location = useLocation();
+  // Read the raw browser search string rather than TanStack Router's parsed
+  // `location.search` — this section renders under several different routes,
+  // each with their own validateSearch shape, so there's no single typed
+  // schema to rely on here.
+  const urlCategory = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("category") || "All" : "All";
+  const [cat, setCat] = useState(urlCategory);
+  useEffect(() => { setCat(urlCategory); }, [urlCategory]);
   const [search, setSearch] = useState("");
   const [filterOpen, setFilterOpen] = useState(false);
   const pageSize = s.pageSize ?? 12;
