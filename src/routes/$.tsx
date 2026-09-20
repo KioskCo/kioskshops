@@ -22,8 +22,17 @@ type StoreResponse = {
   deliveryFees?: { lagos: number; other: number; freeThreshold: number };
 };
 
+// The backend (Render free tier) sleeps after ~15min idle and takes 30-60s to
+// wake on the next request. A cold backend usually shows up here as a fetch
+// rejection (dropped/refused connection during spin-up), not a resolved
+// response — so only THAT case gets retried with a "waking up" message.
+// A resolved `{ success: false }` means the API is up and genuinely has no
+// such vendor, and is shown as 404 immediately, no retry.
+const WAKE_MAX_ATTEMPTS = 5;
+const WAKE_RETRY_DELAY_MS = 6000;
+
 function VendorStoreView({ username, subpath }: { username: string; subpath: string }) {
-  const [status, setStatus] = useState<"loading" | "ok" | "error" | "paused">("loading");
+  const [status, setStatus] = useState<"loading" | "waking" | "ok" | "error" | "paused">("loading");
   const [sections, setSections] = useState<Section[]>([]);
   const [storeName, setStoreName] = useState("");
   const [vendorId, setVendorId] = useState("");
@@ -40,84 +49,97 @@ function VendorStoreView({ username, subpath }: { username: string; subpath: str
     const slug = username.toLowerCase();
     let cancelled = false;
 
-    setStatus("loading");
-    fetch(`${base}/store/${encodeURIComponent(slug)}`)
-      .then((r) => r.json())
-      .then((json: StoreResponse) => {
-        if (cancelled) return;
+    const attemptLoad = (attempt: number) => {
+      if (cancelled) return;
+      setStatus(attempt === 0 ? "loading" : "waking");
+      fetch(`${base}/store/${encodeURIComponent(slug)}`)
+        .then((r) => r.json())
+        .then((json: StoreResponse) => {
+          if (cancelled) return;
 
-        if (!json.success) {
-          actionsRef.current.hydrateVendorTemplate(null);
-          setStatus("error");
-          return;
-        }
+          if (!json.success) {
+            actionsRef.current.hydrateVendorTemplate(null);
+            setStatus("error");
+            return;
+          }
 
-        const name = json.storeName ?? username;
-        setStoreName(name);
+          const name = json.storeName ?? username;
+          setStoreName(name);
 
-        // Store exists but owner paused it — show maintenance page
-        if (json.paused) {
-          actionsRef.current.hydrateVendorTemplate(null);
-          setStatus("paused");
-          return;
-        }
+          // Store exists but owner paused it — show maintenance page
+          if (json.paused) {
+            actionsRef.current.hydrateVendorTemplate(null);
+            setStatus("paused");
+            return;
+          }
 
-        if (!json.templateJson) {
-          actionsRef.current.hydrateVendorTemplate(null);
-          setStatus("error");
-          return;
-        }
+          if (!json.templateJson) {
+            actionsRef.current.hydrateVendorTemplate(null);
+            setStatus("error");
+            return;
+          }
 
-        // Hydrate the WHOLE vendor template (pages, navbar, footer, theme,
-        // fonts/designTokens, payments, referrals) so the shop never falls back
-        // to admin/default template data. Internal links are scoped to @username.
-        const tpl = scopeTemplateToVendor(JSON.parse(json.templateJson) as Template, slug);
-        const vid = json.vendorId ?? "";
-        const url = json.launchUrl ?? `https://kiosk.store/@${username}`;
+          // Hydrate the WHOLE vendor template (pages, navbar, footer, theme,
+          // fonts/designTokens, payments, referrals) so the shop never falls back
+          // to admin/default template data. Internal links are scoped to @username.
+          const tpl = scopeTemplateToVendor(JSON.parse(json.templateJson) as Template, slug);
+          const vid = json.vendorId ?? "";
+          const url = json.launchUrl ?? `https://kiosk.store/@${username}`;
 
-        actionsRef.current.hydrateVendorTemplate(tpl);
-        setPersistedVendorSlug(slug);
-        if (json.deliveryFees) actionsRef.current.setDeliveryFees(json.deliveryFees);
+          actionsRef.current.hydrateVendorTemplate(tpl);
+          setPersistedVendorSlug(slug);
+          if (json.deliveryFees) actionsRef.current.setDeliveryFees(json.deliveryFees);
 
-        // Resolve the page for the current subpath, falling back to home.
-        const norm = (s: string) => s.replace(/\/+$/, "") || "/";
-        const sub = subpath ? "/" + subpath.replace(/^\/+|\/+$/g, "") : "/";
-        const page =
-          tpl.pages?.find((p) => norm(p.slug) === norm(sub)) ??
-          tpl.pages?.find((p) => p.slug === "/" || p.slug === "home") ??
-          tpl.pages?.[0];
+          // Resolve the page for the current subpath, falling back to home.
+          const norm = (s: string) => s.replace(/\/+$/, "") || "/";
+          const sub = subpath ? "/" + subpath.replace(/^\/+|\/+$/g, "") : "/";
+          const page =
+            tpl.pages?.find((p) => norm(p.slug) === norm(sub)) ??
+            tpl.pages?.find((p) => p.slug === "/" || p.slug === "home") ??
+            tpl.pages?.[0];
 
-        setSections(page?.sections ?? []);
-        setVendorId(vid);
-        setLaunchUrl(url);
-        if (vid) setActiveVendorId(vid);
+          setSections(page?.sections ?? []);
+          setVendorId(vid);
+          setLaunchUrl(url);
+          if (vid) setActiveVendorId(vid);
 
-        // SEO: pick first hero image if available
-        const heroSection = page?.sections?.find((s) => s.type === "hero" && (s as any).image);
-        const heroImage = heroSection ? (heroSection as any).image : undefined;
-        applyVendorSEO(name, slug, url, heroImage);
+          // SEO: pick first hero image if available
+          const heroSection = page?.sections?.find((s) => s.type === "hero" && (s as any).image);
+          const heroImage = heroSection ? (heroSection as any).image : undefined;
+          applyVendorSEO(name, slug, url, heroImage);
 
-        // Favicon: vendor logo → Kiosk platform logo fallback
-        setFavicon(tpl.navbar?.logoImage || "/kiosk-favicon.png");
+          // Favicon: vendor logo → Kiosk platform logo fallback
+          setFavicon(tpl.navbar?.logoImage || "/kiosk-favicon.png");
 
-        setStatus("ok");
-      })
-      .catch(() => {
-        if (!cancelled) {
-          actionsRef.current.hydrateVendorTemplate(null);
-          setStatus("error");
-        }
-      });
+          setStatus("ok");
+        })
+        .catch(() => {
+          if (cancelled) return;
+          if (attempt < WAKE_MAX_ATTEMPTS - 1) {
+            setTimeout(() => attemptLoad(attempt + 1), WAKE_RETRY_DELAY_MS);
+          } else {
+            actionsRef.current.hydrateVendorTemplate(null);
+            setStatus("error");
+          }
+        });
+    };
+
+    attemptLoad(0);
 
     return () => {
       cancelled = true;
     };
   }, [username, subpath]);
 
-  if (status === "loading") {
+  if (status === "loading" || status === "waking") {
     return (
-      <div className="flex min-h-[60vh] items-center justify-center">
+      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 px-6 text-center">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+        {status === "waking" && (
+          <p className="text-sm text-muted-foreground">
+            Waking up the store — this can take up to a minute if it's been quiet for a while.
+          </p>
+        )}
       </div>
     );
   }

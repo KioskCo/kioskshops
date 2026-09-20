@@ -37,8 +37,17 @@ type StoreResponse = {
   deliveryFees?: { lagos: number; other: number; freeThreshold: number };
 };
 
+// The backend (Render free tier) sleeps after ~15min idle and takes 30-60s to
+// wake on the next request. A cold backend shows up here as a fetch rejection
+// (dropped/refused connection during spin-up), not a resolved response — so
+// only THAT case is retried with a "waking up" message. A resolved
+// `{ success: false }` means the API is up and genuinely has no such domain
+// mapped, and is shown as 404 immediately, no retry.
+const DOMAIN_WAKE_MAX_ATTEMPTS = 5;
+const DOMAIN_WAKE_RETRY_DELAY_MS = 6000;
+
 function CustomDomainView({ domain }: { domain: string }) {
-  const [status, setStatus] = useState<"loading" | "ok" | "error" | "paused">("loading");
+  const [status, setStatus] = useState<"loading" | "waking" | "ok" | "error" | "paused">("loading");
   const [storeName, setStoreName] = useState("");
   const [vendorId, setVendorId] = useState("");
   const { hydrateVendorTemplate, setDeliveryFees, pages } = useStorefront();
@@ -52,40 +61,52 @@ function CustomDomainView({ domain }: { domain: string }) {
     const base = (import.meta as any).env?.["VITE_API_BASE"] ?? "/api";
     let cancelled = false;
 
-    setStatus("loading");
-    fetch(`${base}/store/by-domain?domain=${encodeURIComponent(domain)}`)
-      .then((r) => r.json())
-      .then((json: StoreResponse) => {
-        if (cancelled) return;
-        if (!json.success) { setStatus("error"); return; }
+    const attemptLoad = (attempt: number) => {
+      if (cancelled) return;
+      setStatus(attempt === 0 ? "loading" : "waking");
+      fetch(`${base}/store/by-domain?domain=${encodeURIComponent(domain)}`)
+        .then((r) => r.json())
+        .then((json: StoreResponse) => {
+          if (cancelled) return;
+          if (!json.success) { setStatus("error"); return; }
 
-        const name = json.storeName ?? domain;
-        setStoreName(name);
+          const name = json.storeName ?? domain;
+          setStoreName(name);
 
-        if (json.paused) { setStatus("paused"); return; }
-        if (!json.templateJson) { setStatus("error"); return; }
+          if (json.paused) { setStatus("paused"); return; }
+          if (!json.templateJson) { setStatus("error"); return; }
 
-        // Hydrate the WHOLE vendor template — same mechanism as the /@username
-        // path — so nothing here ever falls back to admin/default template data.
-        // Unlike scopeTemplateToVendor (used for /@username), links stay
-        // un-prefixed since a custom domain IS the vendor's own root.
-        const tpl: Template = JSON.parse(json.templateJson!);
-        const vid = json.vendorId ?? "";
+          // Hydrate the WHOLE vendor template — same mechanism as the /@username
+          // path — so nothing here ever falls back to admin/default template data.
+          // Unlike scopeTemplateToVendor (used for /@username), links stay
+          // un-prefixed since a custom domain IS the vendor's own root.
+          const tpl: Template = JSON.parse(json.templateJson!);
+          const vid = json.vendorId ?? "";
 
-        actionsRef.current.hydrateVendorTemplate(tpl);
-        if (vid) setActiveVendorId(vid);
-        setVendorId(vid);
-        if (json.deliveryFees) actionsRef.current.setDeliveryFees(json.deliveryFees);
+          actionsRef.current.hydrateVendorTemplate(tpl);
+          if (vid) setActiveVendorId(vid);
+          setVendorId(vid);
+          if (json.deliveryFees) actionsRef.current.setDeliveryFees(json.deliveryFees);
 
-        const homePage = tpl.pages?.find((p) => p.slug === "/" || p.slug === "home") ?? tpl.pages?.[0];
-        const heroSection = homePage?.sections?.find((s) => s.type === "hero" && (s as any).image);
-        const heroImage = heroSection ? (heroSection as any).image : undefined;
-        applyVendorSEO(name, domain, json.launchUrl ?? `https://${domain}`, heroImage);
-        setFavicon(tpl.navbar?.logoImage || "/kiosk-favicon.png");
+          const homePage = tpl.pages?.find((p) => p.slug === "/" || p.slug === "home") ?? tpl.pages?.[0];
+          const heroSection = homePage?.sections?.find((s) => s.type === "hero" && (s as any).image);
+          const heroImage = heroSection ? (heroSection as any).image : undefined;
+          applyVendorSEO(name, domain, json.launchUrl ?? `https://${domain}`, heroImage);
+          setFavicon(tpl.navbar?.logoImage || "/kiosk-favicon.png");
 
-        setStatus("ok");
-      })
-      .catch(() => { if (!cancelled) setStatus("error"); });
+          setStatus("ok");
+        })
+        .catch(() => {
+          if (cancelled) return;
+          if (attempt < DOMAIN_WAKE_MAX_ATTEMPTS - 1) {
+            setTimeout(() => attemptLoad(attempt + 1), DOMAIN_WAKE_RETRY_DELAY_MS);
+          } else {
+            setStatus("error");
+          }
+        });
+    };
+
+    attemptLoad(0);
 
     // NOT clearing the hydrated template here. This component only renders
     // for the bare "/" route — the buyer navigating anywhere else on the SAME
@@ -102,10 +123,15 @@ function CustomDomainView({ domain }: { domain: string }) {
     };
   }, [domain]);
 
-  if (status === "loading") {
+  if (status === "loading" || status === "waking") {
     return (
-      <div className="flex min-h-[60vh] items-center justify-center">
+      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 px-6 text-center">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+        {status === "waking" && (
+          <p className="text-sm text-muted-foreground">
+            Waking up the store — this can take up to a minute if it's been quiet for a while.
+          </p>
+        )}
       </div>
     );
   }
