@@ -5,7 +5,7 @@
   "compatibility_flags": ["nodejs_compat"],
   "main": "src/server.ts",
   "vars": {
-    "VITE_API_BASE": "https://kioskbknd.onrender.com/api",
+    "VITE_API_BASE": "https://kioskbknd.pxxlspace.cv/api",
     "VITE_FLUTTERWAVE_PUBLIC_KEY": "FLWPUBK_TEST-c5b7fa5052c0aa881e1773fae2c4d342-X",
     "VITE_PAYSTACK_PUBLIC_KEY": "pk_test_9e10806c6a0d4a77fa081f7ec3f39b49469dd3aa"
   },
