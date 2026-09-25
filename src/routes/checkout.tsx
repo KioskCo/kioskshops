@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { CheckLg, CreditCard2Front, ArrowRepeat } from "react-bootstrap-icons";
 import { useCart } from "@/lib/cart";
+import { useVendorProducts } from "@/lib/vendorProducts";
 import { formatPrice, NIGERIAN_STATES } from "@/lib/products";
 import { placeOrder } from "@/lib/checkout.functions";
 import { useStorefront, isPlatformHost, getPersistedVendorSlug } from "@/lib/storefront";
@@ -25,7 +26,8 @@ function loadScript(src: string): Promise<void> {
 }
 
 function Checkout() {
-  const { detailed, items, subtotal, clear } = useCart();
+  const { detailed, items, subtotal, clear, hydrated: cartHydrated } = useCart();
+  const { loading: productsLoading } = useVendorProducts();
   const { paymentConfig, navbar, referrals, deliveryFees, vendorHydrating } = useStorefront();
 
   useEffect(() => {
@@ -313,6 +315,19 @@ function Checkout() {
             <p className="text-xs text-muted-foreground">Taking you back to the shop in {redirectIn}s…</p>
           )}
         </div>
+      </div>
+    );
+  }
+
+  // On a hard reload, the raw cart (from localStorage) and the vendor's
+  // product list (fetched async) both start empty — `detailed` only fills in
+  // once products have loaded and can be matched against the cart's slugs.
+  // Without this check, that brief window showed "Your bag is empty" even
+  // though real items existed, right until the product fetch resolved.
+  if (items.length > 0 && detailed.length === 0 && (!cartHydrated || productsLoading)) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
       </div>
     );
   }

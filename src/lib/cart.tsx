@@ -13,6 +13,10 @@ type CartCtx = {
   clear: () => void;
   open: boolean;
   setOpen: (o: boolean) => void;
+  /** False until the cart has read localStorage for the current vendor —
+   * lets pages distinguish "still loading" from "genuinely empty" right
+   * after a hard reload. */
+  hydrated: boolean;
 };
 
 const Ctx = createContext<CartCtx | null>(null);
@@ -90,8 +94,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
       clear: () => setItems([]),
       open,
       setOpen,
+      hydrated,
     };
-  }, [items, open]);
+  }, [items, open, hydrated]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
