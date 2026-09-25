@@ -1309,6 +1309,8 @@ export type NavbarConfig = {
 };
 export type FooterColumn = { title: string; links: NavLink[] };
 export type FooterSocialPlatform = "instagram" | "twitter" | "facebook" | "tiktok" | "youtube" | "whatsapp" | "linkedin" | "pinterest" | "snapchat";
+/** Visual style variant — mirrors NavbarStyle so footer and navbar can match or contrast intentionally. */
+export type FooterStyle = "default" | "transparent" | "filled" | "minimal" | "bordered";
 export type FooterConfig = {
   brand: string;
   tagline: string;
@@ -1320,6 +1322,12 @@ export type FooterConfig = {
   logoMode?: "text" | "logo" | "both";
   logoHeight?: number;
   ctaButtons?: Array<{ label: string; href: string; style: "solid" | "outline" | "ghost"; btnBg?: string; btnColor?: string }>;
+  /** Custom font for the brand name text — overrides the global heading font when set. */
+  brandFont?: FontHeading;
+  /** Visual style variant (default "default") */
+  footerStyle?: FooterStyle;
+  /** Custom background colour (overrides footerStyle bg) */
+  footerBg?: string;
 };
 
 export const defaultNavbar: NavbarConfig = {

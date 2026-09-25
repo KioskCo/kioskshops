@@ -34,15 +34,40 @@ export function SiteFooter() {
   const logoMode = footer.logoMode ?? "text";
   const logoH = footer.logoHeight ?? 40;
 
-  // The footer has no font override of its own — it follows the store-wide
-  // Typography setting (same fonts as every section), the way it should.
   const hMeta = HEADING_FONT_META[tokens.fontHeading ?? "serif"] ?? HEADING_FONT_META.serif;
   const bMeta = BODY_FONT_META[tokens.fontBody ?? "inherit"] ?? BODY_FONT_META["inherit"];
-  const headingStyle: CSSProperties = hMeta.family ? { fontFamily: hMeta.family } : {};
   const bodyStyle: CSSProperties = bMeta.family ? { fontFamily: bMeta.family } : {};
 
+  // Brand name can override the store-wide heading font (footer.brandFont);
+  // everything else (column titles, etc.) keeps following the global one.
+  const brandFontKey = footer.brandFont ?? tokens.fontHeading ?? "serif";
+  const brandMeta = HEADING_FONT_META[brandFontKey] ?? hMeta;
+  const brandStyle: CSSProperties = brandMeta.family ? { fontFamily: brandMeta.family } : {};
+  const headingStyle: CSSProperties = hMeta.family ? { fontFamily: hMeta.family } : {};
+
+  // Visual style variant — mirrors the navbar's navbarStyle so footer and
+  // navbar can match or contrast on purpose.
+  const footerStyle = footer.footerStyle ?? "default";
+  const footerClass = [
+    "mt-24",
+    footerStyle === "transparent" ? "border-t-0 bg-transparent" :
+    footerStyle === "minimal"     ? "border-t-0 bg-background" :
+    footerStyle === "bordered"    ? "border-t-2 border-foreground bg-background" :
+    footerStyle === "filled"      ? "border-t-0" :
+    "border-t border-border",
+  ].join(" ");
+  const footerStyleObj: CSSProperties | undefined =
+    footerStyle === "filled" ? { backgroundColor: footer.footerBg ?? "#111111", color: "#ffffff" }
+    : footer.footerBg ? { backgroundColor: footer.footerBg }
+    : undefined;
+  const textOverride = footerStyle === "filled" ? "text-white" : "";
+  const mutedClass = textOverride ? "text-white/70" : "text-muted-foreground";
+  const bottomBorderClass = footerStyle === "transparent" || footerStyle === "minimal" || footerStyle === "filled"
+    ? "border-t-0"
+    : textOverride ? "border-t border-white/10" : "border-t border-border";
+
   return (
-    <footer className="mt-24 border-t border-border">
+    <footer className={footerClass} style={footerStyleObj}>
       <div className="mx-auto max-w-7xl px-6 py-12">
         <div className="grid gap-8 grid-cols-2 md:grid-cols-4">
           {/* Brand column */}
@@ -58,11 +83,11 @@ export function SiteFooter() {
                 />
               )}
               {(logoMode === "text" || logoMode === "both" || !footer.logoMode) && (
-                <p className={`text-xl font-semibold ${alignClass}`} style={headingStyle}>{footer.brand}</p>
+                <p className={`text-xl font-semibold ${alignClass}`} style={brandStyle}>{footer.brand}</p>
               )}
             </div>
             {footer.tagline && (
-              <p className={`mt-2 text-sm text-muted-foreground ${alignClass}`} style={bodyStyle}>{footer.tagline}</p>
+              <p className={`mt-2 text-sm ${mutedClass} ${alignClass}`} style={bodyStyle}>{footer.tagline}</p>
             )}
 
             {/* CTA buttons */}
@@ -99,7 +124,7 @@ export function SiteFooter() {
                     href={s.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-secondary text-muted-foreground hover:text-foreground transition-colors"
+                    className={`inline-flex h-9 w-9 items-center justify-center rounded-full transition-colors ${textOverride ? "bg-white/10 text-white/70 hover:text-white" : "bg-secondary text-muted-foreground hover:text-foreground"}`}
                     title={s.platform}
                   >
                     <SocialIcon platform={s.platform} />
@@ -109,10 +134,10 @@ export function SiteFooter() {
             )}
             {/* Fallback: legacy showSocial without socialLinks array */}
             {footer.showSocial && (!footer.socialLinks || footer.socialLinks.length === 0) && (
-              <div className={`mt-4 flex gap-3 text-xs text-muted-foreground ${flexClass}`}>
-                <a href="#" className="hover:text-foreground">Instagram</a>
-                <a href="#" className="hover:text-foreground">Twitter</a>
-                <a href="#" className="hover:text-foreground">Pinterest</a>
+              <div className={`mt-4 flex gap-3 text-xs ${mutedClass} ${flexClass}`}>
+                <a href="#" className={textOverride ? "hover:text-white" : "hover:text-foreground"}>Instagram</a>
+                <a href="#" className={textOverride ? "hover:text-white" : "hover:text-foreground"}>Twitter</a>
+                <a href="#" className={textOverride ? "hover:text-white" : "hover:text-foreground"}>Pinterest</a>
               </div>
             )}
           </div>
@@ -121,10 +146,10 @@ export function SiteFooter() {
           {footer.columns.map((c, i) => (
             <div key={i}>
               <p className={`text-sm font-semibold ${alignClass}`} style={headingStyle}>{c.title}</p>
-              <ul className="mt-3 space-y-2 text-sm text-muted-foreground" style={bodyStyle}>
+              <ul className={`mt-3 space-y-2 text-sm ${mutedClass}`} style={bodyStyle}>
                 {c.links.map((l, j) => (
                   <li key={j}>
-                    <a href={l.href} className={`hover:text-foreground ${alignClass} block`}>{l.label}</a>
+                    <a href={l.href} className={`${textOverride ? "hover:text-white" : "hover:text-foreground"} ${alignClass} block`}>{l.label}</a>
                   </li>
                 ))}
               </ul>
@@ -133,8 +158,8 @@ export function SiteFooter() {
         </div>
       </div>
 
-      <div className="border-t border-border">
-        <div className={`mx-auto max-w-7xl px-6 py-4 text-xs text-muted-foreground ${alignClass}`} style={bodyStyle}>
+      <div className={bottomBorderClass}>
+        <div className={`mx-auto max-w-7xl px-6 py-4 text-xs ${mutedClass} ${alignClass}`} style={bodyStyle}>
           © {new Date().getFullYear()} {footer.brand}. All rights reserved.
         </div>
       </div>
