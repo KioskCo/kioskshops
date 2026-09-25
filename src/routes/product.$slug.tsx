@@ -67,7 +67,7 @@ interface ReviewData {
 
 function ProductPage() {
   const { slug } = Route.useLoaderData();
-  const { products, getProduct, loading } = useVendorProducts();
+  const { products, getProduct, hydrated: productsHydrated } = useVendorProducts();
   const product = getProduct(slug);
   const { add, setOpen } = useCart();
   const navigate = useNavigate();
@@ -175,7 +175,7 @@ function ProductPage() {
     }, "product-jsonld");
   }, [product?.slug, navbar.brand]);
 
-  if (loading && !product) {
+  if (!productsHydrated && !product) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />

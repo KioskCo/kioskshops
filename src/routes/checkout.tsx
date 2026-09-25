@@ -27,7 +27,7 @@ function loadScript(src: string): Promise<void> {
 
 function Checkout() {
   const { detailed, items, subtotal, clear, hydrated: cartHydrated } = useCart();
-  const { loading: productsLoading } = useVendorProducts();
+  const { hydrated: productsHydrated } = useVendorProducts();
   const { paymentConfig, navbar, referrals, deliveryFees, vendorHydrating } = useStorefront();
 
   useEffect(() => {
@@ -324,7 +324,11 @@ function Checkout() {
   // once products have loaded and can be matched against the cart's slugs.
   // Without this check, that brief window showed "Your bag is empty" even
   // though real items existed, right until the product fetch resolved.
-  if (items.length > 0 && detailed.length === 0 && (!cartHydrated || productsLoading)) {
+  // `!cartHydrated` alone (regardless of items.length) covers the moment
+  // before the cart itself has even read localStorage — items.length is
+  // still 0 then too, which would otherwise slip past a check gated only on
+  // items.length > 0.
+  if (!cartHydrated || (items.length > 0 && !productsHydrated)) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />

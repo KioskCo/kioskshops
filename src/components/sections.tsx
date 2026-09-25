@@ -2298,7 +2298,7 @@ function ContactFormSectionView({ s }: { s: ContactFormSection }) {
 
 function ShopGrid({ s }: { s: ShopGridSection }) {
   const st = useSectionStyles();
-  const { products: vendorProducts, loading } = useVendorProducts();
+  const { products: vendorProducts, hydrated: productsHydrated } = useVendorProducts();
   const { add: addToCartFn } = useCart();
   // A collection-list card links to /shop?category=X expecting this section
   // to land already filtered — this section had its own, entirely separate
@@ -2343,7 +2343,7 @@ function ShopGrid({ s }: { s: ShopGridSection }) {
 
   // ── Skeleton loader ──
   const skeletonCount = pageSize;
-  if (loading && vendorProducts.length === 0) {
+  if (!productsHydrated && vendorProducts.length === 0) {
     return (
       <section className="mx-auto max-w-7xl px-6 py-16">
         {s.heading && <div className="mb-8 h-9 w-48 animate-pulse rounded-lg bg-secondary" />}

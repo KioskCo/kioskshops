@@ -70,6 +70,11 @@ type Ctx = {
   /** Alias for findProduct kept for backwards compat. */
   getProduct: (idOrSlug: string) => VendorProduct | undefined;
   loading: boolean;
+  /** False until the first fetch attempt for the resolved vendor has finished
+   * (or resolved immediately to "no vendor"). Unlike `loading`, this has no
+   * startup gap — pages can trust "hydrated === false" to always mean
+   * "products genuinely aren't known yet", never a misleading in-between. */
+  hydrated: boolean;
 };
 
 const demoProducts: VendorProduct[] = staticProducts.map(toVendorProduct);
@@ -79,6 +84,7 @@ const VendorProductsCtx = createContext<Ctx>({
   findProduct: () => undefined,
   getProduct: () => undefined,
   loading: false,
+  hydrated: true,
 });
 
 function toVendorProduct(p: Product): VendorProduct {
@@ -103,7 +109,17 @@ function toVendorProduct(p: Product): VendorProduct {
 export function VendorProductsProvider({ children }: { children: ReactNode }) {
   const [vendorProducts, setVendorProducts] = useState<VendorProduct[]>([]);
   const [loading, setLoading] = useState(false);
-  const [vendorId, setVendorId] = useState("");
+  const [hydrated, setHydrated] = useState(false);
+  // Read synchronously on the very first render, not in an effect — an empty
+  // initial value here meant the fetch effect below (keyed on vendorId) first
+  // ran with vendorId="", took its "no vendor" branch, and only THEN re-ran
+  // with the real id once the read-from-sessionStorage effect caught up a
+  // render later. That gap is exactly what let pages relying on `loading`
+  // (checkout, most notably) mistake "haven't started fetching yet" for
+  // "confirmed no products" during a hard reload.
+  const [vendorId, setVendorId] = useState(() =>
+    typeof window === "undefined" ? "" : sessionStorage.getItem("kiosk_vendor_id") ?? "",
+  );
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -117,7 +133,6 @@ export function VendorProductsProvider({ children }: { children: ReactNode }) {
       setVendorId(next);
     };
 
-    syncVendorId();
     window.addEventListener(VENDOR_ID_CHANGED_EVENT, syncVendorId as EventListener);
     window.addEventListener("storage", syncVendorId);
 
@@ -130,6 +145,7 @@ export function VendorProductsProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!vendorId) {
       setVendorProducts([]);
+      setHydrated(true);
       return;
     }
 
@@ -155,7 +171,7 @@ export function VendorProductsProvider({ children }: { children: ReactNode }) {
       })
       .catch(() => {})
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) { setLoading(false); setHydrated(true); }
       });
 
     return () => {
@@ -174,7 +190,7 @@ export function VendorProductsProvider({ children }: { children: ReactNode }) {
     (isPreview ? demoProducts.find((p) => p.id === idOrSlug || p.slug === idOrSlug) : undefined);
 
   return (
-    <VendorProductsCtx.Provider value={{ products, findProduct, getProduct: findProduct, loading }}>
+    <VendorProductsCtx.Provider value={{ products, findProduct, getProduct: findProduct, loading, hydrated }}>
       {children}
     </VendorProductsCtx.Provider>
   );
